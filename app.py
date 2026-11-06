@@ -1,289 +1,427 @@
-import os, json
-from flask import Flask, request, jsonify, redirect, session, url_for
+# MyQchat - Developed by QWNG - FINAL 【entity-WhatsApp¦canonical_name=WhatsApp】 Like - PART 1/3
+import os, random, time, secrets, json
+from datetime import datetime, timedelta
+from flask import Flask, request, jsonify, redirect, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
+from sqlalchemy import text
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'myqchat-final-complete-2026')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///myqchat_final.db').replace('postgres://','postgresql://')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = os.environ.get("SECRET_KEY", "MyQchat-QWNG-Secret-2026")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///myqchat_final.db")
+if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres://"):
+    app.config["SQLALCHEMY_DATABASE_URI"] = app.config["SQLALCHEMY_DATABASE_URI"].replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', 'YOUR_GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
-GOOGLE_REDIRECT = os.environ.get('GOOGLE_REDIRECT', 'https://myqchat-1.onrender.com/auth/google/callback')
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT = "https://myqchat-1.onrender.com/auth/google/callback"
+OWNER_EMAIL = "loyalwq@gmail.com"
+OWNER_USERNAME = "LoyalWQ"
 
+# ---------- MODELS ----------
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    uid = db.Column(db.String(20), unique=True)  # 8-digit Permanent UID
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
     name = db.Column(db.String(100))
-    google_id = db.Column(db.String(100), unique=True, nullable=True)
+    password_hash = db.Column(db.String(300))
+    google_id = db.Column(db.String(100))
     is_admin = db.Column(db.Boolean, default=False)
+    tick = db.Column(db.String(20), default="")  # Blue, Orange, Green, L, Scam
+    bio = db.Column(db.String(200), default="Hey there! I am using MyQchat")
+    online = db.Column(db.Boolean, default=False)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_banned = db.Column(db.Boolean, default=False)
-    ban_until = db.Column(db.DateTime, nullable=True)
-    ban_reason = db.Column(db.String(500), default='')
-    def set_password(self,p): self.password_hash=generate_password_hash(p)
-    def check_password(self,p): return check_password_hash(self.password_hash,p)
-    def is_ban_active(self):
-        if not self.is_banned: return False
-        if self.ban_until and self.ban_until < datetime.utcnow():
-            self.is_banned=False; self.ban_until=None; db.session.commit(); return False
-        return True
+    banned_until = db.Column(db.DateTime)
+    def set_password(self, pw): self.password_hash = generate_password_hash(pw)
+    def check_password(self, pw): return check_password_hash(self.password_hash, pw)
+    def to_dict(self):
+        return {"id":self.id,"uid":self.uid,"username":self.username,"email":self.email,"name":self.name or self.username,"tick":self.tick,"is_admin":self.is_admin,"online":self.online,"last_seen":self.last_seen.strftime("%H:%M") if self.last_seen else "","bio":self.bio}
 
-class Block(db.Model):
-    id=db.Column(db.Integer, primary_key=True)
-    blocker_id=db.Column(db.Integer, db.ForeignKey('user.id'))
-    blocked_id=db.Column(db.Integer, db.ForeignKey('user.id'))
-
-class Chat(db.Model):
-    id=db.Column(db.Integer, primary_key=True)
-    is_group=db.Column(db.Boolean, default=False)
-    group_name=db.Column(db.String(100))
-    user1=db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    user2=db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    members_json=db.Column(db.Text, default='[]')
+class Contact(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    owner_id = db.Column(db.Integer)
+    contact_uid = db.Column(db.String(20))
+    contact_name = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Message(db.Model):
-    id=db.Column(db.Integer, primary_key=True)
-    chat_id=db.Column(db.Integer, db.ForeignKey('chat.id'))
-    sender_id=db.Column(db.Integer, db.ForeignKey('user.id'))
-    text=db.Column(db.Text)
-    is_deleted_for_all=db.Column(db.Boolean, default=False)
-    deleted_for_json=db.Column(db.Text, default='[]')
-    created_at=db.Column(db.DateTime, default=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer)
+    sender_uid = db.Column(db.String(20))
+    sender_name = db.Column(db.String(100))
+    to_uid = db.Column(db.String(20))
+    to_id = db.Column(db.Integer)
+    text = db.Column(db.String(500))
+    msg_type = db.Column(db.String(20), default="text")  # text, image, voice, broadcast
+    is_deleted = db.Column(db.Boolean, default=False)
+    is_broadcast = db.Column(db.Boolean, default=False)
+    broadcast_tag = db.Column(db.String(20), default="")  # Announcement, Warning, Ad
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-def is_admin(u): return u and u.is_admin and u.username=='LoyalWQ' and u.email=='loyalwq@gmail.com'
+class Report(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    reporter_id = db.Column(db.Integer)
+    reported_uid = db.Column(db.String(20))
+    reason = db.Column(db.String(20))  # Scam, Harassment, Fake, Spam, Other
+    detail = db.Column(db.String(400))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# ---------- FIX - Gunicorn ke liye yahin migration - __main__ me nahi ----------
+class Block(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    blocker_id = db.Column(db.Integer)
+    blocked_uid = db.Column(db.String(20))
+
+def gen_uid():
+    while True:
+        u = str(random.randint(10000000, 99999999))
+        if not User.query.filter_by(uid=u).first():
+            return u
+
+def get_user_by_uid(uid):
+    return User.query.filter_by(uid=uid).first()
+
 def init_db():
     try:
         with app.app_context():
             db.create_all()
-            from sqlalchemy import text
-            try:
-                cols = [r[1] for r in db.session.execute(text("PRAGMA table_info(user)")).fetchall()]
-                if 'google_id' not in cols:
-                    db.session.execute(text("ALTER TABLE user ADD COLUMN google_id VARCHAR(100)"))
+            db_url = os.environ.get("DATABASE_URL","")
+            if "postgres" in db_url:
+                try:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS google_id VARCHAR(100)'))
                     db.session.commit()
-            except Exception as e:
-                print("SQLite migrate:", e)
-                db.session.rollback()
-            try:
-                db.session.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS google_id VARCHAR(100)'))
-                db.session.commit()
-            except Exception as e:
-                print("Postgres migrate:", e)
-                db.session.rollback()
-            if not User.query.filter_by(username='LoyalWQ').first():
-                u=User(username='LoyalWQ', email='loyalwq@gmail.com', name='LoyalWQ Owner', is_admin=True)
-                u.set_password('AlwaysBeLoyalQ'); db.session.add(u); db.session.commit()
+                except Exception as e:
+                    print("PG migrate:", e); db.session.rollback()
+            else:
+                try:
+                    cols = [r[1] for r in db.session.execute(text("PRAGMA table_info(user)")).fetchall()]
+                    if "google_id" not in cols:
+                        db.session.execute(text("ALTER TABLE user ADD COLUMN google_id VARCHAR(100)"))
+                        db.session.commit()
+                except Exception as e:
+                    print("SQLite migrate:", e); db.session.rollback()
+            if not User.query.filter_by(username=OWNER_USERNAME).first():
+                u = User(username=OWNER_USERNAME, email=OWNER_EMAIL, name="LoyalWQ Owner", is_admin=True, tick="L", uid=gen_uid())
+                u.set_password("AlwaysBeLoyalQ"); db.session.add(u); db.session.commit()
+                print("Owner created UID:", u.uid)
     except Exception as e:
         print("init_db error:", e)
-
 init_db()
 
-@app.route('/fix-db')
-def fix_db():
-    init_db()
-    return jsonify({"ok":True,"msg":"DB fixed - google_id added"})
-
-@app.route('/')
-def index():
-    return '''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MyQchat - Developed by QWNG</title><script src="https://accounts.google.com/gsi/client" async></script><style>body{font-family:Arial;background:#fafafa;margin:0}.top{background:#fff;padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between}.card{background:#fff;margin:12px;padding:14px;border-radius:14px}input{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:6px 0;box-sizing:border-box}button{background:#111;color:#fff;border:0;padding:10px 16px;border-radius:10px;margin-right:6px}.msg{padding:8px;border-radius:10px;margin:6px 0;background:#f1f1f1}.gbtn{background:#fff;color:#111;border:1px solid #ddd}</style></head><body><div class="top"><b>MyQchat</b><span>Developed by QWNG</span></div><div class="card"><h2>Login / Signup</h2><input id="u" placeholder="Username"><input id="e" placeholder="Email"><input id="p" type="password" placeholder="Password"><input id="n" placeholder="Name"><button onclick="signup()">Signup</button><button onclick="login()">Login</button><p id="me"></p><hr><p>Ya Google se login karo:</p><div id="g_id_onload" data-client_id="YOUR_GOOGLE_CLIENT_ID" data-callback="onGoogle"></div><div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div><br><button class="gbtn" onclick="window.location='/login/google'">Google Login - Redirect wala</button></div><div class="card"><h3>Users</h3><div id="users"></div><h3>Chat - Real Chatting</h3><div id="msgs"></div><input id="txt" placeholder="Message likho"><button onclick="send()">Send</button></div><script>let myId=localStorage.getItem("myqchat_id"), chatId=null;function val(id){return document.getElementById(id).value;}async function signup(){let btn=document.getElementById("me");btn.innerText="Signup ho raha hai...";try{let r=await fetch("/api/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:val("u"),email:val("e"),password:val("p"),name:val("n")||val("u")})});let d=await r.json();btn.innerText=JSON.stringify(d);alert(JSON.stringify(d));}catch(e){btn.innerText="Error: "+e;}}async function login(){let btn=document.getElementById("me");btn.innerText="Login ho raha hai...";try{let r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:val("u"),password:val("p")})});let d=await r.json();if(d.success){myId=d.user_id;localStorage.setItem("myqchat_id",myId);btn.innerText="Login OK - "+d.username+" Admin:"+d.is_admin;loadUsers();}else{btn.innerText=d.error;alert(d.error);}}catch(e){btn.innerText="Error: "+e;}}async function onGoogle(resp){let r=await fetch("/api/google_login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({credential:resp.credential})});let d=await r.json();if(d.success){myId=d.user_id;localStorage.setItem("myqchat_id",myId);document.getElementById("me").innerText="Google Login OK - "+d.username;loadUsers();}else alert(d.error);}async function loadUsers(){let r=await fetch("/api/users?user_id="+myId);let d=await r.json();document.getElementById("users").innerHTML=d.map(x=>"<div>"+x.name+" (@"+x.username+") <button onclick=startChat("+x.id+")>Chat</button></div>").join("");}async function startChat(other){let r=await fetch("/api/start_chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user1:myId,user2:other})});let d=await r.json();chatId=d.chat_id;loadMsgs();}async function loadMsgs(){if(!chatId)return;let r=await fetch("/api/messages?chat_id="+chatId+"&user_id="+myId);let d=await r.json();document.getElementById("msgs").innerHTML=d.map(m=>"<div class=msg>"+m.sender_name+": "+m.text+" <small>"+m.time+"</small></div>").join("");}async function send(){await fetch("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:chatId,sender_id:myId,text:document.getElementById("txt").value})});document.getElementById("txt").value="";loadMsgs();}if(myId){loadUsers();}setInterval(loadMsgs,3000);</script><p style="text-align:center">Developed by QWNG - 2026 QWNG Company | Owner can view chats for moderation</p></body></html>'''.replace('YOUR_GOOGLE_CLIENT_ID', GOOGLE_CLIENT_ID)
-
-@app.route('/api/google_login', methods=['POST'])
-def api_google_login():
-    d = request.json or {}
-    cred = d.get('credential','')
-    if not cred: return jsonify({"error":"No Google credential"}),400
+# ---------- AUTH APIs ----------
+@app.route("/api/signup", methods=["POST"])
+def signup():
     try:
-        info = id_token.verify_oauth2_token(cred, google_requests.Request(), GOOGLE_CLIENT_ID)
-        email = info.get('email','').lower()
-        name = info.get('name','')
-        gid = info.get('sub','')
-    except Exception as e:
-        return jsonify({"error":f"Google verify failed: {e}"}),400
-    u = User.query.filter_by(email=email).first()
-    if not u:
-        base = email.split('@')[0]
-        username = base
-        i=1
-        while User.query.filter_by(username=username).first():
-            username = f"{base}{i}"; i+=1
-        u = User(username=username, email=email, name=name, google_id=gid)
-        if username=='LoyalWQ' and email=='loyalwq@gmail.com': u.is_admin=True
-        u.set_password(os.urandom(16).hex())
+        d = request.get_json(force=True)
+        username = (d.get("username") or "").strip()
+        email = (d.get("email") or "").strip().lower()
+        password = d.get("password") or ""
+        name = (d.get("name") or username).strip()
+        if not username or not email or not password:
+            return jsonify({"success":False,"error":"All fields required"}), 400
+        if User.query.filter_by(username=username).first():
+            return jsonify({"success":False,"error":"Username already taken"}), 400
+        if User.query.filter_by(email=email).first():
+            return jsonify({"success":False,"error":"Email already used"}), 400
+        u = User(username=username, email=email, name=name, uid=gen_uid())
+        u.set_password(password)
+        if email == OWNER_EMAIL: u.is_admin=True; u.tick="L"
         db.session.add(u); db.session.commit()
-    else:
-        if not u.google_id: u.google_id=gid; db.session.commit()
-    if u.is_ban_active(): return jsonify({"error":"Banned"}),403
-    return jsonify({"success":True,"user_id":u.id,"username":u.username,"email":u.email,"is_admin":u.is_admin,"name":u.name})
+        return jsonify({"success":True,"user":u.to_dict()})
+    except Exception as e:
+        db.session.rollback(); return jsonify({"success":False,"error":str(e)}), 500
 
-@app.route('/login/google')
-def login_google():
-    import urllib.parse
-    params = {"client_id":GOOGLE_CLIENT_ID,"redirect_uri":GOOGLE_REDIRECT,"response_type":"code","scope":"openid email profile","access_type":"offline","prompt":"consent"}
-    return redirect("https://accounts.google.com/o/oauth2/v2/auth?"+urllib.parse.urlencode(params))
-
-@app.route('/auth/google/callback')
-def google_callback():
-    import requests as rq
-    code = request.args.get('code')
-    if not code: return "Google login failed - no code",400
-    data = {"code":code,"client_id":GOOGLE_CLIENT_ID,"client_secret":GOOGLE_CLIENT_SECRET,"redirect_uri":GOOGLE_REDIRECT,"grant_type":"authorization_code"}
-    tok = rq.post("https://oauth2.googleapis.com/token", data=data).json()
-    idtok = tok.get('id_token')
-    if not idtok: return f"Token failed: {tok}",400
+@app.route("/api/login", methods=["POST"])
+def login():
     try:
-        info = id_token.verify_oauth2_token(idtok, google_requests.Request(), GOOGLE_CLIENT_ID)
-    except Exception as e: return f"Verify failed: {e}",400
-    email = info.get('email','').lower(); name = info.get('name',''); gid = info.get('sub','')
-    u = User.query.filter_by(email=email).first()
-    if not u:
-        base=email.split('@')[0]; username=base; i=1
-        while User.query.filter_by(username=username).first():
-            username=f"{base}{i}"; i+=1
-        u=User(username=username,email=email,name=name,google_id=gid)
-        if username=='LoyalWQ' and email=='loyalwq@gmail.com': u.is_admin=True
-        u.set_password(os.urandom(16).hex()); db.session.add(u); db.session.commit()
-    return f"<h2>Google Login OK - {u.username}</h2><p>Ab wapas MyQchat kholo - Tum login ho gaye ho - User ID: {u.id}</p><a href='/'>Back to MyQchat</a>"
+        d = request.get_json(force=True)
+        username = (d.get("username") or "").strip()
+        password = d.get("password") or ""
+        u = User.query.filter_by(username=username).first() or User.query.filter_by(email=username.lower()).first()
+        if not u or not u.check_password(password):
+            return jsonify({"success":False,"error":"Wrong username or password"}), 401
+        if u.is_banned:
+            if u.banned_until and u.banned_until > datetime.utcnow():
+                return jsonify({"success":False,"error":"Banned till "+str(u.banned_until)}), 403
+        u.online=True; u.last_seen=datetime.utcnow(); db.session.commit()
+        session["uid"]=u.uid
+        return jsonify({"success":True,"user":u.to_dict()})
+    except Exception as e:
+        return jsonify({"success":False,"error":str(e)}), 500
 
-@app.route('/api/signup', methods=['POST'])
-def api_signup():
-    d=request.json or {}
-    username=d.get('username','').strip(); email=d.get('email','').strip().lower(); password=d.get('password',''); name=d.get('name',username)
-    if not username or not email or not password: return jsonify({"error":"All fields required - Username, Email, Password bharo"}),400
-    if User.query.filter_by(username=username).first(): return jsonify({"error":"Username already taken. Same username cannot create another account."}),400
-    if User.query.filter_by(email=email).first(): return jsonify({"error":"Email already taken. Same Gmail cannot create another account."}),400
-    u=User(username=username,email=email,name=name)
-    if username=='LoyalWQ' and email=='loyalwq@gmail.com':
-        u.is_admin=True
-    u.set_password(password); db.session.add(u); db.session.commit()
-    return jsonify({"success":True,"user_id":u.id,"is_admin":u.is_admin})
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    uid = request.get_json(force=True, silent=True) or {}
+    u = User.query.filter_by(uid=uid.get("uid")).first()
+    if u: u.online=False; u.last_seen=datetime.utcnow(); db.session.commit()
+    session.clear(); return jsonify({"success":True})
 
-@app.route('/api/login', methods=['POST'])
-def api_login():
-    d=request.json or {}; username=d.get('username','').strip(); password=d.get('password','')
-    u=User.query.filter((User.username==username)|(User.email==username)).first()
-    if not u or not u.check_password(password): return jsonify({"error":"Invalid credentials"}),401
-    if u.is_ban_active(): return jsonify({"error":f"Banned. Reason: {u.ban_reason}. Until: {u.ban_until or 'Permanent'}"}),403
-    return jsonify({"success":True,"user_id":u.id,"username":u.username,"email":u.email,"is_admin":u.is_admin,"name":u.name})
+@app.route("/auth/google")
+def google_auth():
+    from urllib.parse import urlencode
+    params = {"client_id":GOOGLE_CLIENT_ID,"redirect_uri":GOOGLE_REDIRECT,"response_type":"code","scope":"openid email profile","access_type":"offline","prompt":"consent"}
+    return redirect("https://accounts.google.com/o/oauth2/v2/auth?"+urlencode(params))
 
-@app.route('/api/users', methods=['GET'])
-def api_users():
-    user_id=request.args.get('user_id', type=int)
-    users=User.query.filter(User.id!=user_id, User.is_banned==False).all()
-    blocked=[b.blocked_id for b in Block.query.filter_by(blocker_id=user_id).all()]
-    return jsonify([{"id":u.id,"username":u.username,"name":u.name,"email":u.email} for u in users if u.id not in blocked])
+@app.route("/auth/google/callback")
+def google_cb():
+    code = request.args.get("code")
+    if not code: return "Google login failed - No code"
+    try:
+        import requests
+        r = requests.post("https://oauth2.googleapis.com/token", data={"code":code,"client_id":GOOGLE_CLIENT_ID,"client_secret":GOOGLE_CLIENT_SECRET,"redirect_uri":GOOGLE_REDIRECT,"grant_type":"authorization_code"}, timeout=15).json()
+        id_token = r.get("id_token")
+        if not id_token: return "Google token failed: "+str(r)
+        from google.oauth2 import id_token as gid
+        from google.auth.transport import requests as greq
+        info = gid.verify_oauth2_token(id_token, greq.Request(), GOOGLE_CLIENT_ID)
+        email = info.get("email"); name = info.get("name","User")
+        u = User.query.filter_by(email=email).first()
+        if not u:
+            base = email.split("@")[0].replace(".","")[:15]
+            uname = base
+            i=1
+            while User.query.filter_by(username=uname).first():
+                i+=1; uname=f"{base}{i}"
+            u = User(username=uname, email=email, name=name, uid=gen_uid(), google_id=info.get("sub"))
+            u.set_password(secrets.token_hex(8))
+            if email==OWNER_EMAIL: u.is_admin=True; u.tick="L"
+            db.session.add(u); db.session.commit()
+        u.online=True; db.session.commit()
+        session["uid"]=u.uid
+        return redirect(f"/?google_uid={u.uid}")
+    except Exception as e:
+        return f"Google login error: {e}"
 
-@app.route('/api/chats', methods=['GET'])
-def api_chats():
-    user_id=request.args.get('user_id', type=int); result=[]
-    for ch in Chat.query.all():
-        if ch.is_group:
-            members=json.loads(ch.members_json or '[]')
-            if user_id in members: result.append({"id":ch.id,"is_group":True,"name":ch.group_name,"members":members})
-        else:
-            if user_id in [ch.user1, ch.user2]:
-                other_id=ch.user2 if ch.user1==user_id else ch.user1
-                other=User.query.get(other_id)
-                if not other: continue
-                if Block.query.filter_by(blocker_id=user_id, blocked_id=other.id).first(): continue
-                result.append({"id":ch.id,"is_group":False,"name":other.name,"username":other.username,"other_id":other.id})
-    return jsonify(result)
+@app.route("/fix-db")
+def fix_db():
+    try: init_db(); return jsonify({"ok":True})
+    except Exception as e: return jsonify({"ok":False,"error":str(e)})
 
-@app.route('/api/start_chat', methods=['POST'])
-def api_start_chat():
-    d=request.json or {}; u1=d.get('user1'); u2=d.get('user2')
-    if Block.query.filter_by(blocker_id=u2, blocked_id=u1).first(): return jsonify({"error":"You are blocked"}),403
-    ch=Chat.query.filter(((Chat.user1==u1)&(Chat.user2==u2))|((Chat.user1==u2)&(Chat.user2==u1)), Chat.is_group==False).first()
-    if not ch: ch=Chat(user1=u1,user2=u2); db.session.add(ch); db.session.commit()
-    return jsonify({"chat_id":ch.id})
-
-@app.route('/api/messages', methods=['GET'])
-def api_messages():
-    chat_id=request.args.get('chat_id', type=int); user_id=request.args.get('user_id', type=int)
-    msgs=Message.query.filter_by(chat_id=chat_id).order_by(Message.created_at.asc()).all(); res=[]
-    for m in msgs:
-        if m.is_deleted_for_all:
-            res.append({"id":m.id,"text":"This message was deleted","is_deleted":True,"sender_id":m.sender_id,"time":m.created_at.strftime('%H:%M')}); continue
-        if user_id in json.loads(m.deleted_for_json or '[]'): continue
-        sender=User.query.get(m.sender_id)
-        res.append({"id":m.id,"text":m.text,"sender_id":m.sender_id,"sender_name":sender.name if sender else "?","is_me":m.sender_id==user_id,"time":m.created_at.strftime('%H:%M')})
-    return jsonify(res)
-
-@app.route('/api/send', methods=['POST'])
-def api_send():
-    d=request.json or {}; m=Message(chat_id=d.get('chat_id'), sender_id=d.get('sender_id'), text=d.get('text','').strip()); db.session.add(m); db.session.commit(); return jsonify({"success":True})
-
-@app.route('/api/block', methods=['POST'])
-def api_block():
-    d=request.json or {}
-    if not Block.query.filter_by(blocker_id=d.get('blocker_id'), blocked_id=d.get('blocked_id')).first():
-        db.session.add(Block(blocker_id=d.get('blocker_id'), blocked_id=d.get('blocked_id'))); db.session.commit()
-    return jsonify({"success":True})
-
-@app.route('/api/delete_for_me', methods=['POST'])
-def api_delete_for_me():
-    d=request.json or {}; m=Message.query.get(d.get('message_id')); lst=json.loads(m.deleted_for_json or '[]')
-    if d.get('user_id') not in lst: lst.append(d.get('user_id')); m.deleted_for_json=json.dumps(lst); db.session.commit()
-    return jsonify({"success":True})
-
-@app.route('/api/delete_for_all', methods=['POST'])
-def api_delete_for_all():
-    d=request.json or {}; m=Message.query.get(d.get('message_id')); sender=User.query.get(d.get('user_id'))
-    if m.sender_id!=d.get('user_id') and not (sender and is_admin(sender)): return jsonify({"error":"Only sender or owner can delete for everyone"}),403
-    m.is_deleted_for_all=True; db.session.commit(); return jsonify({"success":True})
-
-@app.route('/api/groups/create', methods=['POST'])
-def api_group_create():
-    d=request.json or {}; g=Chat(is_group=True, group_name=d.get('name'), members_json=json.dumps([d.get('creator_id')])); db.session.add(g); db.session.commit(); return jsonify({"group_id":g.id})
-
-@app.route('/api/groups/add', methods=['POST'])
-def api_group_add():
-    d=request.json or {}; g=Chat.query.get(d.get('group_id')); members=json.loads(g.members_json or '[]')
-    if d.get('user_id') not in members: members.append(d.get('user_id')); g.members_json=json.dumps(members); db.session.commit()
-    return jsonify({"success":True})
-
-@app.route('/api/admin/users', methods=['GET'])
-def api_admin_users():
-    admin=User.query.get(request.args.get('admin_id', type=int))
-    if not is_admin(admin): return jsonify({"error":"Owner only"}),403
-    return jsonify([{"id":u.id,"username":u.username,"email":u.email,"name":u.name,"is_banned":u.is_banned,"ban_until":str(u.ban_until) if u.ban_until else None,"ban_reason":u.ban_reason} for u in User.query.all()])
-
-@app.route('/api/admin/messages', methods=['GET'])
-def api_admin_messages():
-    admin=User.query.get(request.args.get('admin_id', type=int))
-    if not is_admin(admin): return jsonify({"error":"Owner only"}),403
-    msgs=Message.query.order_by(Message.created_at.desc()).limit(100).all()
-    return jsonify([{"id":m.id,"text":m.text,"sender":User.query.get(m.sender_id).username if User.query.get(m.sender_id) else "?","chat_id":m.chat_id,"time":str(m.created_at),"is_deleted":m.is_deleted_for_all} for m in msgs])
-
-@app.route('/api/admin/ban', methods=['POST'])
-def api_admin_ban():
-    d=request.json or {}; admin=User.query.get(d.get('admin_id'))
-    if not is_admin(admin): return jsonify({"error":"Owner only"}),403
-    target=User.query.get(d.get('target_id'))
-    if target.is_admin: return jsonify({"error":"Cannot ban owner"}),400
-    target.is_banned=True; target.ban_reason=d.get('reason','Violation')
-    if d.get('days',0)>0: target.ban_until=datetime.utcnow()+timedelta(days=d.get('days'))
-    else: target.ban_until=None
-    db.session.commit(); return jsonify({"success":True})
-
-@app.route('/api/admin/unban', methods=['POST'])
-def api_admin_unban():
-    d=request.json or {}; admin=User.query.get(d.get('admin_id'))
-    if not is_admin(admin): return jsonify({"error":"Owner only"}),403
-    target=User.query.get(d.get('target_id')); target.is_banned=False; target.ban_until=None; target.ban_reason=''; db.session.commit(); return jsonify({"success":True})
-
-@app.route('/api/terms')
-def api_terms():
-    return jsonify({"title":"Terms","content":"Owner (LoyalWQ - loyalwq@gmail.com) can view chats for moderation, safety, ban. Do not share private data. Owner can temp/perm ban. Same username/email cannot create another account."})
+@app.route("/cron/cleanup")
+def cleanup():
+    try:
+        now = datetime.utcnow()
+        # Message 2 din, Image 1 hr, Voice 20 min
+        Message.query.filter(Message.created_at < now - timedelta(days=2), Message.msg_type=="text").delete()
+        Message.query.filter(Message.created_at < now - timedelta(hours=1), Message.msg_type=="image").delete()
+        Message.query.filter(Message.created_at < now - timedelta(minutes=20), Message.msg_type=="voice").delete()
+        db.session.commit(); return jsonify({"ok":True,"cleaned":True})
+    except Exception as e: return jsonify({"ok":False,"error":str(e)})
 
 @app.errorhandler(404)
-def not_found(e):
-    return j
+def e404(e): return jsonify({"success":False,"error":"Not found"}), 404
+@app.errorhandler(500)
+def e500(e): return jsonify({"success":False,"error":"Server error"}), 500
+# ---------- CHAT APIs - PART 2 ----------
+@app.route("/api/me")
+def me():
+    uid = request.args.get("uid")
+    u = User.query.filter_by(uid=uid).first()
+    if not u: return jsonify({"success":False}), 404
+    return jsonify({"success":True,"user":u.to_dict()})
+
+@app.route("/api/users")
+def users():
+    uid = request.args.get("uid","")
+    all_users = User.query.filter(User.uid != uid).order_by(User.created_at.desc()).all()
+    # Chats List ke liye - last message bhi bhejo
+    out=[]
+    for u in all_users:
+        last = Message.query.filter(((Message.sender_uid==uid)&(Message.to_uid==u.uid))|((Message.sender_uid==u.uid)&(Message.to_uid==uid))).order_by(Message.created_at.desc()).first()
+        unread = Message.query.filter_by(sender_uid=u.uid, to_uid=uid).count()
+        d=u.to_dict()
+        d["last_msg"] = ("You: " + last.text if last and last.sender_uid==uid else last.text) if last and not last.is_deleted else ("Deleted message" if last else "")
+        d["last_time"] = last.created_at.strftime("%I:%M %p") if last else ""
+        d["unread"] = unread
+        out.append(d)
+    return jsonify({"success":True,"users":out})
+
+@app.route("/api/search-uid")
+def search_uid():
+    q = request.args.get("q","").strip()
+    u = User.query.filter_by(uid=q).first()
+    if not u: return jsonify({"success":False,"error":"No user found with this UID"})
+    return jsonify({"success":True,"user":u.to_dict()})
+
+@app.route("/api/add-contact", methods=["POST"])
+def add_contact():
+    d=request.get_json(force=True); owner=d.get("my_uid"); c_uid=d.get("contact_uid")
+    u=User.query.filter_by(uid=c_uid).first()
+    if not u: return jsonify({"success":False,"error":"UID not found"}),404
+    if Contact.query.filter_by(owner_id=User.query.filter_by(uid=owner).first().id, contact_uid=c_uid).first():
+        return jsonify({"success":True,"msg":"Already in contacts"})
+    ow=User.query.filter_by(uid=owner).first()
+    db.session.add(Contact(owner_id=ow.id, contact_uid=c_uid, contact_name=u.name)); db.session.commit()
+    return jsonify({"success":True,"msg":"Contact saved"})
+
+@app.route("/api/messages")
+def get_msgs():
+    my_uid=request.args.get("my_uid"); other_uid=request.args.get("other_uid")
+    msgs=Message.query.filter(((Message.sender_uid==my_uid)&(Message.to_uid==other_uid))|((Message.sender_uid==other_uid)&(Message.to_uid==my_uid))).order_by(Message.created_at.asc()).all()
+    out=[]
+    for m in msgs:
+        out.append({"id":m.id,"from":m.sender_uid,"from_name":m.sender_name,"text":"This message was deleted" if m.is_deleted else m.text,"type":m.msg_type,"is_deleted":m.is_deleted,"is_broadcast":m.is_broadcast,"tag":m.broadcast_tag,"time":m.created_at.strftime("%I:%M %p")})
+    return jsonify({"success":True,"messages":out})
+
+@app.route("/api/send", methods=["POST"])
+def send_msg():
+    try:
+        d=request.get_json(force=True)
+        my_uid=d.get("my_uid"); to_uid=d.get("to_uid"); text=(d.get("text") or "").strip()
+        msg_type=d.get("type","text")
+        if not text: return jsonify({"success":False,"error":"Empty message"}),400
+        if len(text)>100 and msg_type=="text": return jsonify({"success":False,"error":"Max 100 characters"}),400
+        me_u=User.query.filter_by(uid=my_uid).first(); to_u=User.query.filter_by(uid=to_uid).first()
+        if not me_u or not to_u: return jsonify({"success":False,"error":"User not found"}),404
+        # Unknown = 2 msg x 30 letters - check contact
+        is_contact = Contact.query.filter_by(owner_id=to_u.id, contact_uid=my_uid).first() or Contact.query.filter_by(owner_id=me_u.id, contact_uid=to_uid).first()
+        if not is_contact and me_u.username!="LoyalWQ":
+            cnt=Message.query.filter_by(sender_uid=my_uid, to_uid=to_uid).count()
+            if cnt>=2: return jsonify({"success":False,"error":"Save to contacts first - Unknown limit 2 messages"}),403
+            if len(text)>30: return jsonify({"success":False,"error":"Unknown - Max 30 letters. Save contact to send longer"}),400
+        # Cooldown - 10 sec check
+        last=Message.query.filter_by(sender_uid=my_uid).order_by(Message.created_at.desc()).first()
+        if last and (datetime.utcnow()-last.created_at).total_seconds()<3:
+            return jsonify({"success":False,"error":"Wait 3 seconds"}),429
+        # 300 msg/hour
+        one_hr_ago=datetime.utcnow()-timedelta(hours=1)
+        cnt_hr=Message.query.filter(Message.sender_uid==my_uid, Message.created_at>=one_hr_ago).count()
+        if cnt_hr>=300: return jsonify({"success":False,"error":"Hourly limit 300 reached"}),429
+        m=Message(sender_id=me_u.id, sender_uid=my_uid, sender_name=me_u.name, to_uid=to_uid, to_id=to_u.id, text=text, msg_type=msg_type)
+        db.session.add(m); db.session.commit()
+        return jsonify({"success":True,"id":m.id})
+    except Exception as e:
+        db.session.rollback(); return jsonify({"success":False,"error":str(e)}),500
+
+@app.route("/api/delete-msg", methods=["POST"])
+def del_msg():
+    d=request.get_json(force=True); mid=d.get("id"); my_uid=d.get("my_uid")
+    m=Message.query.get(mid)
+    if not m: return jsonify({"success":False}),404
+    if m.sender_uid!=my_uid: return jsonify({"success":False,"error":"Only sender can delete"}),403
+    m.is_deleted=True; db.session.commit()
+    return jsonify({"success":True})
+
+@app.route("/api/report", methods=["POST"])
+def report():
+    d=request.get_json(force=True)
+    detail=(d.get("detail") or "")[:400]
+    db.session.add(Report(reporter_id=User.query.filter_by(uid=d.get("my_uid")).first().id if User.query.filter_by(uid=d.get("my_uid")).first() else 0, reported_uid=d.get("reported_uid"), reason=d.get("reason"), detail=detail)); db.session.commit()
+    return jsonify({"success":True,"msg":"Report sent to Admin"})
+
+@app.route("/api/broadcast", methods=["POST"])
+def broadcast():
+    d=request.get_json(force=True)
+    me_u=User.query.filter_by(uid=d.get("my_uid")).first()
+    if not me_u or not me_u.is_admin: return jsonify({"success":False,"error":"Admin only"}),403
+    users=User.query.all()
+    for u in users:
+        if u.uid==me_u.uid: continue
+        db.session.add(Message(sender_id=me_u.id, sender_uid=me_u.uid, sender_name="QWNG Bot", to_uid=u.uid, to_id=u.id, text=d.get("text",""), msg_type="text", is_broadcast=True, broadcast_tag=d.get("tag","Announcement")))
+    db.session.commit(); return jsonify({"success":True,"msg":"Broadcast sent"})
+
+@app.route("/api/terms")
+def terms():
+    return jsonify({"title":"Terms","text":"13+ only. Owner can view chats for moderation. Be respectful."})
+
+@app.route("/")
+def home():
+    return FRONTEND
+# ---------- FRONTEND - PART 3 - WhatsApp Like - 3 Pages ----------
+FRONTEND = r"""
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MyQchat - Developed by QWNG</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
+body{background:#efeae2}
+.top{background:#075e54;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+.top h1{font-size:22px} .top span{font-size:12px;opacity:.9}
+.page{display:none;padding:0}.page.active{display:block}
+.card{background:#fff;margin:16px;padding:18px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+input{width:100%;padding:13px;margin:8px 0;border:1px solid #ddd;border-radius:8px;font-size:15px}
+button{padding:11px 18px;border:none;border-radius:22px;font-size:15px;cursor:pointer}
+.btn-green{background:#00a884;color:#fff;width:100%;margin-top:8px}.btn-black{background:#111;color:#fff}
+.btn-outline{background:#fff;border:1px solid #ccc}
+.search{margin:12px;background:#fff;border-radius:22px;padding:10px 14px;display:flex;gap:8px}
+.search input{border:none;padding:0;margin:0;outline:none}
+.tabs{display:flex;gap:8px;padding:0 12px}.tabs button{background:#fff;border:1px solid #ddd;padding:7px 14px;border-radius:20px}
+.tabs button.on{background:#d9fdd3}
+.chat-item{background:#fff;display:flex;gap:12px;padding:12px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;align-items:center}
+.avatar{width:48px;height:48px;border-radius:50%;background:#075e54;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;flex-shrink:0}
+.chat-item b{font-size:16px}.chat-item p{font-size:13px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.time{font-size:12px;color:#666;margin-left:auto}
+.badge{background:#25d366;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.chat-head{background:#075e54;color:#fff;padding:10px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.chat-head .back{font-size:24px;cursor:pointer}
+.msgs{padding:12px;padding-bottom:90px;min-height:70vh}
+.bubble{max-width:80%;padding:8px 10px;border-radius:10px;margin:6px 0;font-size:15px;position:relative;word-wrap:break-word}
+.mine{background:#d9fdd3;margin-left:auto}.theirs{background:#fff}
+.bubble small{font-size:11px;color:#555;float:right;margin:6px 0 0 8px}
+.deleted{font-style:italic;color:#777}
+.inputbar{position:fixed;bottom:0;left:0;right:0;background:#efeae2;padding:8px;display:flex;gap:8px}
+.inputbar input{border-radius:22px;background:#fff}
+.sendbtn{background:#00a884;color:#fff;border-radius:50%;width:48px;height:48px;font-size:20px}
+.footer{text-align:center;font-size:12px;color:#888;padding:12px}
+.tick{color:#53bdeb;font-weight:bold}.tick-L{color:#ff9800;font-weight:bold}
+</style></head><body>
+
+<!-- PAGE 1 - LOGIN -->
+<div id="page-login" class="page active">
+<div class="top"><div><h1>MyQchat</h1><span>Developed by QWNG</span></div><span id="login-status"></span></div>
+<div class="card"><h2>Welcome to MyQchat</h2><p style="color:#666;margin:8px 0">Chat with anyone using 8-digit UID. No phone number needed.</p>
+<input id="su_name" placeholder="Your Name - e.g. Rahul"><input id="su_username" placeholder="Username"><input id="su_email" placeholder="Email"><input id="su_pass" type="password" placeholder="Password">
+<button class="btn-green" onclick="doSignup()">Create Account</button>
+<hr style="margin:14px 0"><input id="li_user" placeholder="Username or Email"><input id="li_pass" type="password" placeholder="Password">
+<button class="btn-green" onclick="doLogin()">Login</button>
+<button class="btn-outline" style="width:100%;margin-top:8px" onclick="location.href='/auth/google'">Sign in with Google</button>
+<p id="auth-msg" style="color:#075e54;margin-top:10px"></p></div>
+<div class="card"><b>Your UID - After Login</b><p style="color:#666">You will get a permanent 8-digit UID. Share it with friends to chat.</p></div>
+<div class="footer">Developed by QWNG - 2026 QWNG Company | Owner - LoyalWQ</div></div>
+
+<!-- PAGE 2 - CHATS LIST -->
+<div id="page-chats" class="page">
+<div class="top"><div><h1>MyQchat</h1><span id="my-info"></span></div><span onclick="doLogout()" style="cursor:pointer">Logout</span></div>
+<div class="search"><span>🔍</span><input id="search-uid" placeholder="Search by 8-digit UID..."><button class="btn-black" onclick="searchUID()">Search</button></div>
+<div id="search-result"></div>
+<div class="tabs"><button class="on">All</button><button>Unread</button><button>Favourites</button><button>Groups</button></div>
+<div id="chat-list" style="margin-top:10px"></div>
+<div class="card" id="admin-box" style="display:none"><b>Admin Broadcast - QWNG Bot</b><input id="bc-text" placeholder="Announcement message"><input id="bc-tag" placeholder="Tag - Announcement / Warning / Ad"><button class="btn-green" onclick="doBroadcast()">Send to All</button></div>
+<div class="card"><b>Shop</b><p>Shop inside app - Mail: qwngofficial@gmail.com</p><b>Ad</b><p>Single Local Ad - EarnKaro Link Ad - Backed by Ratan Tata</p></div>
+<div class="footer">Developed by QWNG</div></div>
+
+<!-- PAGE 3 - CHAT SCREEN -->
+<div id="page-chat" class="page">
+<div class="chat-head"><span class="back" onclick="showPage('page-chats')">←</span><div class="avatar" id="chat-avatar">?</div><div><b id="chat-name">Name</b><br><span id="chat-uid" style="font-size:12px"></span> <span id="chat-online" style="font-size:12px"></span></div><span style="margin-left:auto">📹 📞 ⋮</span></div>
+<div class="msgs" id="msgs"></div>
+<div class="inputbar"><input id="msg-input" placeholder="Message" maxlength="100"><button class="sendbtn" onclick="sendMsg()">➤</button></div></div>
+
+<script>
+let me=null, currentChat=null, currentChatUser=null;
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0)}
+function getQ(n){return new URLSearchParams(location.search).get(n)}
+async function api(url,body){let r=await fetch(url,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return r.json()}
+async function doSignup(){let b={name:document.getElementById('su_name').value,username:document.getElementById('su_username').value,email:document.getElementById('su_email').value,password:document.getElementById('su_pass').value};let j=await api('/api/signup',b);document.getElementById('auth-msg').innerText=j.success?'Account created! Now Login - Your UID: '+j.user.uid:j.error;if(j.success){document.getElementById('li_user').value=b.username}}
+async function doLogin(){let b={username:document.getElementById('li_user').value,password:document.getElementById('li_pass').value};let j=await api('/api/login',b);if(!j.success){document.getElementById('auth-msg').innerText=j.error;return}me=j.user;localStorage.setItem('myqchat_uid',me.uid);localStorage.setItem('myqchat_user',JSON.stringify(me));afterLogin()}
+function afterLogin(){document.getElementById('my-info').innerText='Hi, '+me.name+' | UID: '+me.uid+(me.tick?' | Tick: '+me.tick:'');if(me.is_admin)document.getElementById('admin-box').style.display='block';showPage('page-chats');loadChats()}
+async function loadChats(){let j=await api('/api/users?uid='+me.uid);let h='';j.users.forEach(u=>{let letter=(u.name||'?')[0].toUpperCase();let tick=u.tick?` <span class="tick">${u.tick==='L'?'L ✓':u.tick+' ✓'}</span>`:'';h+=`<div class="chat-item" onclick="openChat('${u.uid}','${u.name.replace(/'/g,'')}')"><div class="avatar">${letter}</div><div><b>${u.name}${tick}</b><p>${u.last_msg||u.bio||''}</p></div><span class="time">${u.last_time||''}</span>${u.unread?`<span class="badge">${u.unread}</span>`:''}</div>`});document.getElementById('chat-list').innerHTML=h||'<div class="card">No users yet. Share your UID with friends.</div>'}
+async function searchUID(){let q=document.getElementById('search-uid').value;let j=await api('/api/search-uid?q='+q);document.getElementById('search-result').innerHTML=j.success?`<div class="card"><b>${j.user.name} (@${j.user.username}) - UID: ${j.user.uid}</b><br><button class="btn-green" onclick="saveContact('${j.user.uid}')">Save to Contacts</button> <button class="btn-black" onclick="openChat('${j.user.uid}','${j.user.name}')">Chat</button></div>`:`<div class="card">${j.error}</div>`}
+async function saveContact(uid){let j=await api('/api/add-contact',{my_uid:me.uid,contact_uid:uid});alert(j.msg||j.error);loadChats()}
+async function openChat(uid,name){currentChat=uid;currentChatUser=name;document.getElementById('chat-name').innerText=name;document.getElementById('chat-uid').innerText='UID: '+uid;document.getElementById('chat-avatar').innerText=name[0].toUpperCase();showPage('page-chat');loadMsgs();let t=setInterval(()=>{if(document.getElementById('page-chat').classList.contains('active'))loadMsgs();else clearInterval(t)},3000)}
+async function loadMsgs(){if(!currentChat)return;let j=await api(`/api/messages?my_uid=${me.uid}&other_uid=${currentChat}`);let h='';j.messages.forEach(m=>{let mine=m.from===me.uid;let cls=mine?'mine':'theirs';let txt=m.is_deleted?'<span class="deleted">🚫 This message was deleted</span>':m.text;let del=mine&&!m.is_deleted?` <span style="cursor:pointer" onclick="delMsg(${m.id})">🗑️</span>`:'';let bc=m.is_broadcast?`[${m.tag}] `:'';h+=`<div class="bubble ${cls}">${bc}${txt}<small>${m.time} ${mine?'✓✓':''}</small>${del}</div>`});document.getElementById('msgs').innerHTML=h;window.scrollTo(0,document.body.scrollHeight)}
+async function sendMsg(){let inp=document.getElementById('msg-input');let txt=inp.value.trim();if(!txt)return;let j=await api('/api/send',{my_uid:me.uid,to_uid:currentChat,text:txt});if(!j.success){alert(j.error);return}inp.value='';loadMsgs()}
+async function delMsg(id){if(!confirm('Delete for everyone?'))return;await api('/api/delete-msg',{id:id,my_uid:me.uid});loadMsgs()}
+async function doBroadcast(){let j=await api('/api/broadcast',{my_uid:me.uid,text:document.getElementById('bc-text').value,tag:document.getElementById('bc-tag').value||'Announcement'});alert(j.msg||j.error)}
+function doLogout(){localStorage.clear();location.href='/'}
+document.getElementById('msg-input')?.addEventListener('keypress',e=>{if(e.key==='Enter')sendMsg()});
+window.onload=async()=>{let g=getQ('google_uid');let saved=localStorage.getItem('myqchat_uid');if(g){let j=await api('/api/me?uid='+g);if(j.success){me=j.user;localStorage.setItem('myqchat_uid',me.uid);afterLogin();return}}if(saved){let j=await api('/api/me?uid='+saved);if(j.success){me=j.user;afterLogin()}}};
+</script></body></html>
+"""
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
