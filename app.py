@@ -603,7 +603,7 @@ button{padding:11px 16px;border:none;border-radius:22px;font-size:15px;cursor:po
 
 <!-- MODAL - CHAT MENU -->
 <div class="modal" id="chat-modal"><div class="box"><h3 id="modal-title">Chat Options</h3><button class="btn-grey" style="width:100%;margin-top:8px" onclick="clearChat()">Clear Chat</button><button class="btn-grey" style="width:100%;margin-top:8px" onclick="blockUser()">Block User</button><button class="btn-grey" style="width:100%;margin-top:8px" onclick="openReport()">Report User</button><button class="btn-black" style="width:100%;margin-top:8px" onclick="closeModal()">Close
-=============
+"""
 # ================= PART 4 FIX - JS with ''' - Kabhi SyntaxError nahi ayega =================
 JS_PART = r'''
 <script>
