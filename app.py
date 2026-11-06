@@ -1,4 +1,3 @@
-
 import os
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -54,8 +53,10 @@ class Message(db.Model):
 
 def is_admin(u): return u and u.is_admin and u.username=='LoyalWQ' and u.email=='loyalwq@gmail.com'
 
+# ---------- FRONTEND - Browser wala MyQchat ----------
 @app.route('/')
-def index(): return jsonify({"status":"MyQchat FINAL Server Running","admin":"LoyalWQ - loyalwq@gmail.com"})
+def index():
+    return '''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MyQchat - Developed by QWNG</title><style>body{font-family:Arial;background:#fafafa;margin:0}.top{background:#fff;padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between}.card{background:#fff;margin:12px;padding:14px;border-radius:14px}input{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;margin:6px 0;box-sizing:border-box}button{background:#111;color:#fff;border:0;padding:10px 16px;border-radius:10px;margin-right:6px}.msg{padding:8px;border-radius:10px;margin:6px 0;background:#f1f1f1}</style></head><body><div class="top"><b>MyQchat</b><span>Developed by QWNG</span></div><div class="card"><h2>Login / Signup</h2><input id="u" placeholder="Username - LoyalWQ = Owner"><input id="e" placeholder="Email - loyalwq@gmail.com"><input id="p" type="password" placeholder="Password - Owner = AlwaysBeLoyalQ"><input id="n" placeholder="Name"><button onclick="signup()">Signup</button><button onclick="login()">Login</button><p id="me"></p></div><div class="card"><h3>Users</h3><div id="users"></div><h3>Chat</h3><div id="msgs"></div><input id="txt" placeholder="Message likho"><button onclick="send()">Send</button></div><script>let myId=localStorage.getItem("myqchat_id"), chatId=null;async function signup(){let r=await fetch("/api/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u.value,email:e.value,password:p.value,name:n.value})});let d=await r.json();alert(JSON.stringify(d));}async function login(){let r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u.value,password:p.value})});let d=await r.json();if(d.success){myId=d.user_id;localStorage.setItem("myqchat_id",myId);document.getElementById("me").innerText="Login OK - "+d.username+" Admin:"+d.is_admin;loadUsers();}else alert(d.error);}async function loadUsers(){let r=await fetch("/api/users?user_id="+myId);let d=await r.json();document.getElementById("users").innerHTML=d.map(x=>"<div>"+x.name+" (@"+x.username+") <button onclick=startChat("+x.id+")>Chat</button></div>").join("");}async function startChat(other){let r=await fetch("/api/start_chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user1:myId,user2:other})});let d=await r.json();chatId=d.chat_id;loadMsgs();}async function loadMsgs(){if(!chatId)return;let r=await fetch("/api/messages?chat_id="+chatId+"&user_id="+myId);let d=await r.json();document.getElementById("msgs").innerHTML=d.map(m=>"<div class=msg>"+m.sender_name+": "+m.text+" <small>"+m.time+"</small></div>").join("");}async function send(){await fetch("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:chatId,sender_id:myId,text:txt.value})});txt.value="";loadMsgs();}if(myId){loadUsers();}setInterval(loadMsgs,3000);</script><p style="text-align:center">Developed by QWNG - 2026 QWNG Company | Owner can view chats for moderation</p></body></html>'''
 
 @app.route('/api/signup', methods=['POST'])
 def api_signup():
@@ -88,8 +89,7 @@ def api_users():
 
 @app.route('/api/chats', methods=['GET'])
 def api_chats():
-    user_id=request.args.get('user_id', type=int)
-    result=[]
+    user_id=request.args.get('user_id', type=int); result=[]
     for ch in Chat.query.all():
         if ch.is_group:
             members=json.loads(ch.members_json or '[]')
@@ -114,15 +114,13 @@ def api_start_chat():
 @app.route('/api/messages', methods=['GET'])
 def api_messages():
     chat_id=request.args.get('chat_id', type=int); user_id=request.args.get('user_id', type=int)
-    msgs=Message.query.filter_by(chat_id=chat_id).order_by(Message.created_at.asc()).all()
-    res=[]
+    msgs=Message.query.filter_by(chat_id=chat_id).order_by(Message.created_at.asc()).all(); res=[]
     for m in msgs:
         if m.is_deleted_for_all:
-            res.append({"id":m.id,"text":"This message was deleted","is_deleted":True,"sender_id":m.sender_id,"time":m.created_at.strftime('%H:%M')})
-            continue
+            res.append({"id":m.id,"text":"This message was deleted","is_deleted":True,"sender_id":m.sender_id,"time":m.created_at.strftime('%H:%M')}); continue
         if user_id in json.loads(m.deleted_for_json or '[]'): continue
         sender=User.query.get(m.sender_id)
-        res.append({"id":m.id,"text":m.text,"sender_id":m.sender_id,"sender_name":sender.name if sender else "?", "is_me":m.sender_id==user_id,"time":m.created_at.strftime('%H:%M')})
+        res.append({"id":m.id,"text":m.text,"sender_id":m.sender_id,"sender_name":sender.name if sender else "?","is_me":m.sender_id==user_id,"time":m.created_at.strftime('%H:%M')})
     return jsonify(res)
 
 @app.route('/api/send', methods=['POST'])
@@ -131,7 +129,7 @@ def api_send():
 
 @app.route('/api/block', methods=['POST'])
 def api_block():
-    d=request.json or {}; 
+    d=request.json or {}
     if not Block.query.filter_by(blocker_id=d.get('blocker_id'), blocked_id=d.get('blocked_id')).first():
         db.session.add(Block(blocker_id=d.get('blocker_id'), blocked_id=d.get('blocked_id'))); db.session.commit()
     return jsonify({"success":True})
@@ -169,7 +167,7 @@ def api_admin_messages():
     admin=User.query.get(request.args.get('admin_id', type=int))
     if not is_admin(admin): return jsonify({"error":"Owner only"}),403
     msgs=Message.query.order_by(Message.created_at.desc()).limit(100).all()
-    return jsonify([{"id":m.id,"text":m.text,"sender":User.query.get(m.sender_id).username if User.query.get(m.sender_id) else "?", "chat_id":m.chat_id, "time":str(m.created_at), "is_deleted":m.is_deleted_for_all} for m in msgs])
+    return jsonify([{"id":m.id,"text":m.text,"sender":User.query.get(m.sender_id).username if User.query.get(m.sender_id) else "?","chat_id":m.chat_id,"time":str(m.created_at),"is_deleted":m.is_deleted_for_all} for m in msgs])
 
 @app.route('/api/admin/ban', methods=['POST'])
 def api_admin_ban():
