@@ -360,7 +360,7 @@ with app.app_context():
         for t, art, url in [('Calm Morning','QWNG Music','https://example.com/s1.mp3'),('Happy Vibes','QWNG Music','https://example.com/s2.mp3'),('Chill Evening','QWNG Music','https://example.com/s3.mp3'),('Morning Energy','QWNG Music','https://example.com/s4.mp3'),('Night Peace','QWNG Music','https://example.com/s5.mp3')]:
             db.session.add(Song(title=t, artist=art, url=url, added_by='System', is_active=True))
         db.session.commit()
-      @app.route('/api/signup', methods=['POST'])
+@app.route('/api/signup', methods=['POST'])
 def signup():
     d = request.get_json(silent=True) or {}
     username = clean_username(d.get('username'))
@@ -493,8 +493,7 @@ def unblock():
         db.session.delete(b)
         db.session.commit()
     return jsonify({'ok': True})
-
-@app.route('/api/blocked', methods=['GET'])
+    @app.route('/api/blocked', methods=['GET'])
 def blocked():
     me = get_me()
     if not me:
