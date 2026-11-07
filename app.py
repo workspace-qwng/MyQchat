@@ -1437,10 +1437,9 @@ def app_page():
     return FRONTEND + FRONTEND_JS + SETTINGS_JS
 
 # Override / to serve full app (FRONTEND already has </body> missing JS, so we serve combined)
-_old_home = app.view_functions['home']
-def new_home():
+@app.route("/")
+def home():
     return FRONTEND + FRONTEND_JS + SETTINGS_JS
-app.view_functions['home'] = new_home
 # ================= PART 7-A - QWNG BOT - DEFAULT CHAT - SCRIPTED FAKE AI - AUTOCORRECT =================
 # Bot AI nahi hai - Scripted hai - Possible Questions -> Fixed Response
 # Autocorrect: hilp -> help, helo -> hello, tik -> tick, pasword -> password
