@@ -1051,7 +1051,7 @@ async function doLogin(){
 function afterLogin(){
   show('authPage').style.display='none'; show('mainApp').style.display='block';
   localStorage.setItem('myqchat_uid', ME.uid);
-  show('topStatus').innerText = ME.username + ' • UID: ' + ME.uid;
+  show('topStatus').innerText = ME.username + ' - UID: ' + ME.uid;
   loadSettingsPage(); loadUsers(); loadPosts(); loadStatus(); loadCalls();
   setInterval(()=>{ if(CUR) loadMessages(); else loadUsers(); }, 3000);
 }
@@ -1096,7 +1096,7 @@ async function doSearchUid(){
   let q=val('addUid'); if(q.length!==8){show('addMsg').innerText='Enter 8-digit UID';return}
   let r=await fetch(`/api/search-uid?q=${q}`); let d=await r.json();
   if(!d.success){show('addMsg').innerText=d.error;return}
-  show('addResult').innerHTML=`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:center"><div class="avatar" style="background:${d.user.avatar_color}">${d.user.name.charAt(0)}</div><div style="flex:1"><b>${d.user.name} ${tickHtml(d.user.tick)}</b><br><span style="font-size:12px;color:#667781">@${d.user.username} • UID ${d.user.uid}</span></div><button class="btn" style="width:auto;margin:0;padding:8px 14px" onclick="doAddContact('${d.user.uid}')">Add</button></div>`;
+  show('addResult').innerHTML=`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:center"><div class="avatar" style="background:${d.user.avatar_color}">${d.user.name.charAt(0)}</div><div style="flex:1"><b>${d.user.name} ${tickHtml(d.user.tick)}</b><br><span style="font-size:12px;color:#667781">@${d.user.username} - UID ${d.user.uid}</span></div><button class="btn" style="width:auto;margin:0;padding:8px 14px" onclick="doAddContact('${d.user.uid}')">Add</button></div>`;
 }
 async function doAddContact(uid){
   let r=await fetch('/api/add-contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({my_uid:ME.uid,contact_uid:uid})});
