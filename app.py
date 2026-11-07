@@ -1123,7 +1123,7 @@ async function loadMessages(){
     let inner='';
     if(m.is_forwarded) inner+=`<div class="fwd">Forwarded</div>`;
     if(m.reply_to_text) inner+=`<div class="replyBox">${m.reply_to_text}</div>`;
-    if(m.is_broadcast) inner+=`<div style="background:#fff3cd;border-radius:8px;padding:8px;margin-bottom:5px"><b style="color:#e65100">${m.tag||'Announcement'} • QWNG Bot</b><br>${m.text}</div>`;
+    if(m.is_broadcast) inner+=`<div style="background:#fff3cd;border-radius:8px;padding:8px;margin-bottom:5px"><b style="color:#e65100">${m.tag||'Announcement'} - QWNG Bot</b><br>${m.text}</div>`;
     else if(m.type==='image' && m.image_data) inner+=`<img src="${m.image_data}"><br>${m.text!=='Photo'?m.text:''}`
     else if(m.type==='voice') inner+=`🎤 Voice Message (15 sec)`;
     else inner+=`${m.text}`;
