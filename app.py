@@ -991,7 +991,7 @@ body.dark .msg.mine{background:#005c4b;color:#e9edef}
 <button class="btn btn2" onclick="openAdminUsers()">👥 All Users</button>
 <button class="btn" onclick="openAdminTicks()">✔️ Tick Requests</button>
 <button class="btn btn2" onclick="openAdminReports()">🚩 Reports</button>
-<button class="btn" onclick="openBroadcast()">📢 Broadcast via QWNG Bot</button>
+<button class="btn" onclick="openBroadcast()"> Broadcast via QWNG Bot</button>
 <button class="btn btn2" onclick="ownerBackup()">💾 Owner Backup</button>
 </div></div>
 
