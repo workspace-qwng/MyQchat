@@ -1115,7 +1115,7 @@ async function loadMessages(){
   let s=val('chatSearchIn');
   let r=await fetch(`/api/messages?my_uid=${ME.uid}&other_uid=${CUR}&search=${encodeURIComponent(s)}`); let d=await r.json();
   let area=show('chatArea');
-  if(!d.messages||d.messages.length===0){ area.innerHTML=`<div class="empty"><b>No messages yet</b><br>Say Hi 👋<br><span style="font-size:12px">Unknown users: Max 2 messages, 30 letters each.<br>Save to contacts for full chat.</span></div>`; return; }
+  if(!d.messages||d.messages.length===0){ area.innerHTML=`<div class="empty"><b>No messages yet</b><br>Say Hi<br><span style="font-size:12px">Unknown users: Max 2 messages, 30 letters each.<br>Save to contacts for full chat.</span></div>`; return; }
   let html='';
   d.messages.forEach(m=>{
     let isMine = m.from===ME.uid;
