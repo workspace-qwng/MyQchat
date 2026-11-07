@@ -1008,7 +1008,8 @@ body.dark .msg.mine{background:#005c4b;color:#e9edef}
 <div style="padding:8px 12px;background:#fff;display:flex;gap:8px"><input id="chatSearchIn" placeholder="Search in chat..." style="flex:1;background:#f0f2f5;border:none;border-radius:18px;padding:8px 12px" oninput="loadMessages()"><button onclick="openStarred()" style="background:#fff3e0;border:none;border-radius:18px;padding:6px 12px">⭐ Starred</button></div>
 <div class="chatArea" id="chatArea"></div>
 <div class="emojiBar" id="emojiBar"><span onclick="addEmoji('😀')">😀</span><span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('❤️')">❤️</span><span onclick="addEmoji('🔥')">🔥</span><span onclick="addEmoji('👍')">👍</span><span onclick="
-# ================= PART 5 - FRONTEND JS - CHAT + POSTS + STATUS + CALLS - ENGLISH ONLY =================
+"""
+# ================= PART 5 - FRONTEND JS - CHAT + POSTS + STATUS + CALLS - ENGLISH ONLY ================="""
 FRONTEND_JS = r"""<script>
 let ME=null, CUR=null, CUR_NAME="", REPLY_ID=null, REPLY_TEXT="", CUR_FILTER='all', CHAT_TIMER=null;
 function val(id){return document.getElementById(id).value.trim()}
