@@ -6655,7 +6655,7 @@ GOOGLE_STUDIO_URL = "https://generativelanguage.googleapis.com/v1beta/models/" +
 SMART_BOT_SYSTEM_PROMPT = "You are Smart Bot in MyQchat by QWNG Software Developer Team. Owner is LoyalWQ UID 10000001 L Tick. Support is support.qwng@gmail.com. App is myqchat-1.onrender.com. You help QWNG Bot when user question is not in code. Answer in simple English. Max 20 words. Never ask password. Never ask OTP. Never ask UPI. Never give UPI link. Never give fake link. Payment only inside app Settings Request Tick. If user asks scam, warn and say Block and Report. Be friendly and short."
 
 def call_smart_bot(user_text):
-    if not GOOGLE_STUDIO_API_KEY or GOOGLE_STUDIO_API_KEY == "PASTE YOUR GOOGLE STUDIO API KEY HERE":
+    if not GOOGLE_STUDIO_API_KEY or GOOGLE_STUDIO_API_KEY == "AQ.Ab8RN6KC-Y4SIvh6yH1qzZw7TOPlxKxi_zd4YHXj4NoPczUy-w":
         return "Smart Bot is setting up. Please try again. Type Help for menu."
     payload = {
         "system_instruction": {"parts": [{"text": SMART_BOT_SYSTEM_PROMPT}]},
