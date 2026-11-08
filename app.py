@@ -6438,15 +6438,15 @@ def admin_page_2():
     return FRONTEND_HEAD + FRONTEND_ADMIN
 
 @app.route('/poll-page')
-def poll_page():
+def poll_page_2():
     return FRONTEND_HEAD + FRONTEND_POLL
 
 @app.route('/song-page')
-def song_page():
+def song_page_2():
     return FRONTEND_HEAD + FRONTEND_SONG
 
 @app.route('/status-page')
-def status_page():
+def status_page_2():
     return FRONTEND_HEAD + FRONTEND_STATUS
 import os
 import json
