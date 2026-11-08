@@ -6434,7 +6434,7 @@ loadStatus();
 """
 
 @app.route('/admin-page')
-def admin_page():
+def admin_page_2():
     return FRONTEND_HEAD + FRONTEND_ADMIN
 
 @app.route('/poll-page')
