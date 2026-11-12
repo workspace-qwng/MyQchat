@@ -1823,7 +1823,7 @@ def api_bot_password_block():
     ans = bot_search_safety(q)
     if not ans:
         ans = BOT_PASSWORD_BLOCK_EXTRA.get("safety_rule_1", "Never share password or OTP.")
-    return jsonify({"ok": True, "answer": ans cm})
+    return jsonify({"ok": True, "answer": ans})
     import urllib.request
 import urllib.error
 
