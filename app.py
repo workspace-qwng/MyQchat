@@ -1693,3 +1693,391 @@ def api_bot_poll_notes():
     if not ans:
         ans = BOT_HELP_MENU
     return jsonify({"ok": True, "answer": ans})   
+BOT_SAFETY_DATA = {"password_what": "Password is secret for login. Never share password.", "password_safe": "Password Safe: never share password with anyone. MyQchat never asks for password.", "password_forgot": "Forgot Password: use recovery email in Login page.", "password_change": "Change Password: open Profile, use recovery email.", "password_strong": "Strong Password: use 8 chars, mix letters and numbers.", "otp_what": "OTP is one time code for verification.", "otp_safe": "OTP Safe: never share OTP with anyone. MyQchat never asks for OTP.", "otp_fake": "Fake OTP: if someone asks for OTP on email or 【entity-WhatsApp¦canonical_name=WhatsApp】, it is scam.", "login_safe": "Login Safe: login only inside app. Never login via link from email.", "login_problem": "Login Problem: check username and password. Use recovery email if forgot.", "block_what": "Block stops user from messaging you.", "block_how": "Block: open Settings, tap Block, choose user, confirm.", "block_unblock": "Unblock: open Settings, Blocked list, tap Unblock.", "block_effect": "After Block, blocked user cannot message you or see your profile.", "block_owner": "Cannot block Owner LoyalWQ UID 10000001.", "report_what": "Report is complaint about scam or abuse.", "report_how": "Report: open Settings, tap Report, choose user, write reason, send.", "report_reason": "Report Reason: write clear reason, min 5 chars.", "report_check": "Report Check: Admin checks report in Admin Panel.", "report_result": "Report Result: Admin can warn, block, add Scam Tick.", "report_owner": "Cannot report Owner LoyalWQ UID 10000001.", "scam_what": "Scam is fake money or fake link or fake tick.", "scam_example": "Scam Example: UPI link on email, WhatsApp payment, fake tick price.", "scam_protect": "Scam Protect: payment only inside app in Settings. Never pay outside app.", "scam_action": "Scam Action: Block user, Report with reason, contact support.qwng@gmail.com.", "scam_tick_what": "Scam Tick appears after report. It warns others.", "scam_tick_how": "Scam Tick: user reports, Admin checks, Admin adds Scam Tick if true.", "payment_safe": "Payment Safe: payment only inside MyQchat app in Settings.", "payment_where": "Payment Where: open Settings, Tick Request, see price, pay inside app.", "payment_fake": "Payment Fake: if anyone sends UPI link on email or WhatsApp, it is scam.", "payment_check": "Payment Check: never send money on email or WhatsApp. Only inside app.", "link_safe": "Link Safe: do not click unknown link. Login only inside app.", "link_fake": "Fake Link: link from email or WhatsApp can be fake.", "email_safe": "Email Safe: support is support.qwng@gmail.com. Never share OTP or password on email.", "whatsapp_safe": "WhatsApp Safe: MyQchat never asks for money on WhatsApp."}
+
+def bot_search_safety(text):
+    norm = bot_full_normalize(text)
+    fixed = bot_fix_fuzzy_words(norm)
+    if fixed in BOT_SAFETY_DATA:
+        return BOT_SAFETY_DATA[fixed]
+    if norm in BOT_SAFETY_DATA:
+        return BOT_SAFETY_DATA[norm]
+    best_key = ""
+    best_score = 0
+    for key in BOT_SAFETY_DATA:
+        s = bot_fuzzy_similarity(fixed, key)
+        if s > best_score:
+            best_key = key
+            best_score = s
+    if best_score >= 65:
+        return BOT_SAFETY_DATA[best_key]
+    return ""
+
+def bot_safety_full_answer(text):
+    ans = bot_search_safety(text)
+    if ans:
+        return {"found": True, "answer": ans, "source": "safety"}
+    ans2 = bot_safety_answer(text)
+    if ans2:
+        return {"found": True, "answer": ans2, "source": "safety_short"}
+    return {"found": False, "answer": "Never share password or OTP. Payment only inside app in Settings. If scam, Block and Report.", "source": "help"}
+
+@app.route("/api/bot/safety-full")
+def api_bot_safety_full():
+    q = request.args.get("q") or ""
+    return jsonify(bot_safety_full_answer(q)
+BOT_SAFETY_DATA = {"password_what": "Password is secret for login. Never share password.", "password_safe": "Password Safe: never share password with anyone. MyQchat never asks for password.", "password_forgot": "Forgot Password: use recovery email in Login page.", "password_change": "Change Password: open Profile, use recovery email.", "password_strong": "Strong Password: use 8 chars, mix letters and numbers.", "otp_what": "OTP is one time code for verification.", "otp_safe": "OTP Safe: never share OTP with anyone. MyQchat never asks for OTP.", "otp_fake": "Fake OTP: if someone asks for OTP on email or 【entity-WhatsApp¦canonical_name=WhatsApp】, it is scam.", "login_safe": "Login Safe: login only inside app. Never login via link from email.", "login_problem": "Login Problem: check username and password. Use recovery email if forgot.", "block_what": "Block stops user from messaging you.", "block_how": "Block: open Settings, tap Block, choose user, confirm.", "block_unblock": "Unblock: open Settings, Blocked list, tap Unblock.", "block_effect": "After Block, blocked user cannot message you or see your profile.", "block_owner": "Cannot block Owner LoyalWQ UID 10000001.", "report_what": "Report is complaint about scam or abuse.", "report_how": "Report: open Settings, tap Report, choose user, write reason, send.", "report_reason": "Report Reason: write clear reason, min 5 chars.", "report_check": "Report Check: Admin checks report in Admin Panel.", "report_result": "Report Result: Admin can warn, block, add Scam Tick.", "report_owner": "Cannot report Owner LoyalWQ UID 10000001.", "scam_what": "Scam is fake money or fake link or fake tick.", "scam_example": "Scam Example: UPI link on email, WhatsApp payment, fake tick price.", "scam_protect": "Scam Protect: payment only inside app in Settings. Never pay outside app.", "scam_action": "Scam Action: Block user, Report with reason, contact support.qwng@gmail.com.", "scam_tick_what": "Scam Tick appears after report. It warns others.", "scam_tick_how": "Scam Tick: user reports, Admin checks, Admin adds Scam Tick if true.", "payment_safe": "Payment Safe: payment only inside MyQchat app in Settings.", "payment_where": "Payment Where: open Settings, Tick Request, see price, pay inside app.", "payment_fake": "Payment Fake: if anyone sends UPI link on email or WhatsApp, it is scam.", "payment_check": "Payment Check: never send money on email or WhatsApp. Only inside app.", "link_safe": "Link Safe: do not click unknown link. Login only inside app.", "link_fake": "Fake Link: link from email or WhatsApp can be fake.", "email_safe": "Email Safe: support is support.qwng@gmail.com. Never share OTP or password on email.", "whatsapp_safe": "WhatsApp Safe: MyQchat never asks for money on WhatsApp."}
+
+def bot_search_safety(text):
+    norm = bot_full_normalize(text)
+    fixed = bot_fix_fuzzy_words(norm)
+    if fixed in BOT_SAFETY_DATA:
+        return BOT_SAFETY_DATA[fixed]
+    if norm in BOT_SAFETY_DATA:
+        return BOT_SAFETY_DATA[norm]
+    best_key = ""
+    best_score = 0
+    for key in BOT_SAFETY_DATA:
+        s = bot_fuzzy_similarity(fixed, key)
+        if s > best_score:
+            best_key = key
+            best_score = s
+    if best_score >= 65:
+        return BOT_SAFETY_DATA[best_key]
+    return ""
+
+def bot_safety_full_answer(text):
+    ans = bot_search_safety(text)
+    if ans:
+        return {"found": True, "answer": ans, "source": "safety"}
+    ans2 = bot_safety_answer(text)
+    if ans2:
+        return {"found": True, "answer": ans2, "source": "safety_short"}
+    return {"found": False, "answer": "Never share password or OTP. Payment only inside app in Settings. If scam, Block and Report.", "source": "help"}
+
+@app.route("/api/bot/safety-full")
+def api_bot_safety_full():
+    q = request.args.get("q") or ""
+    return jsonify(bot_safety_full_answer(q))
+BOT_PASSWORD_BLOCK_EXTRA = {"password_rule_1": "Never share password. MyQchat never asks for password.", "password_rule_2": "Password must be min 4 chars. Use strong password.", "password_rule_3": "If forgot password, use recovery email.", "password_rule_4": "Do not use same password on other apps.", "otp_rule_1": "Never share OTP. MyQchat never asks for OTP.", "otp_rule_2": "OTP is sent to recovery email only.", "otp_rule_3": "If someone asks OTP on email or 【entity-WhatsApp¦canonical_name=WhatsApp】, it is scam.", "block_rule_1": "Block stops user from messaging you.", "block_rule_2": "Blocked user cannot see your status or call you.", "block_rule_3": "You can unblock anytime in Settings.", "block_rule_4": "Cannot block Owner LoyalWQ.", "report_rule_1": "Report needs reason min 5 chars.", "report_rule_2": "Admin checks report within 24 hours.", "report_rule_3": "Fake report is also checked.", "report_rule_4": "Cannot report Owner LoyalWQ.", "scam_rule_1": "Scam is fake money or fake link.", "scam_rule_2": "If scam, Block and Report.", "scam_rule_3": "Contact support.qwng@gmail.com if scam.", "scam_rule_4": "Payment only inside app.", "payment_rule_1": "Payment only inside MyQchat app in Settings.", "payment_rule_2": "Never send money on email or 【entity-WhatsApp¦canonical_name=WhatsApp】.", "payment_rule_3": "Tick price is shown inside app.", "payment_rule_4": "If UPI link on email, it is scam.", "safety_rule_1": "Never share password or OTP.", "safety_rule_2": "Payment only inside app.", "safety_rule_3": "If scam, Block and Report.", "safety_rule_4": "Support is support.qwng@gmail.com.", "safety_rule_5": "Login only inside app, not via email link.", "help_rule_1": "Help Menu has Tick, Song, Chat, Group, Status, Call, Settings, Admin, Report, Block, UID, Login, Password, Support.", "help_rule_2": "QWNG Bot answers from code, fast.", "help_rule_3": "Smart Bot answers via Gemini 2.5 Flash when code has no answer."}
+
+BOT_COMBINED_SAFETY_KB = {}
+BOT_COMBINED_SAFETY_KB.update(BOT_KNOWLEDGE)
+BOT_COMBINED_SAFETY_KB.update(BOT_TICK_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_ADMIN_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_CHAT_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_STATUS_CALL_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_SONG_PROFILE_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_SEARCH_SETTINGS_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_POLL_NOTES_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_BACKUP_EXPORT_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_SAFETY_DATA)
+BOT_COMBINED_SAFETY_KB.update(BOT_PASSWORD_BLOCK_EXTRA)
+BOT_COMBINED_SAFETY_KB.update(BOT_EXTRA_QA)
+
+def bot_search_all_combined(text):
+    norm = bot_full_normalize(text)
+    fixed = bot_fix_fuzzy_words(norm)
+    if fixed in BOT_COMBINED_SAFETY_KB:
+        return BOT_COMBINED_SAFETY_KB[fixed]
+    if norm in BOT_COMBINED_SAFETY_KB:
+        return BOT_COMBINED_SAFETY_KB[norm]
+    best_key = ""
+    best_score = 0
+    for key in BOT_COMBINED_SAFETY_KB:
+        s = bot_fuzzy_similarity(fixed, key)
+        if s > best_score:
+            best_key = key
+            best_score = s
+    if best_score >= 70:
+        return BOT_COMBINED_SAFETY_KB[best_key]
+    smart = bot_smart_match(fixed)
+    if smart["final"] in BOT_COMBINED_SAFETY_KB:
+        return BOT_COMBINED_SAFETY_KB[smart["final"]]
+    top = bot_get_top_intents(fixed, 1)
+    if top:
+        intent = top[0]["intent"]
+        for key in BOT_COMBINED_SAFETY_KB:
+            if intent in key:
+                return BOT_COMBINED_SAFETY_KB[key]
+    return ""
+
+def bot_final_knowledge_answer(text):
+    ans = bot_search_all_combined(text)
+    if ans:
+        return {"found": True, "answer": ans, "source": "combined_big"}
+    ans2 = bot_search_knowledge(text)
+    if ans2:
+        return {"found": True, "answer": ans2, "source": "general"}
+    fb = bot_fallback_answer(text)
+    return {"found": False, "answer": fb["answer"], "source": "fallback"}
+
+@app.route("/api/bot/all-knowledge")
+def api_bot_all_knowledge():
+    q = request.args.get("q") or ""
+    return jsonify(bot_final_knowledge_answer(q))
+
+@app.route("/api/bot/password-block")
+def api_bot_password_block():
+    q = request.args.get("q") or ""
+    ans = bot_search_safety(q)
+    if not ans:
+        ans = BOT_PASSWORD_BLOCK_EXTRA.get("safety_rule_1", "Never share password or OTP.")
+    return jsonify({"ok": True, "answer": ans cm})
+    import urllib.request
+import urllib.error
+
+GOOGLE_STUDIO_API_KEY = "PASTE YOUR GOOGLE STUDIO API KEY HERE"
+GOOGLE_STUDIO_MODEL = "gemini-2.5-flash"
+GOOGLE_STUDIO_URL = "https://generativelanguage.googleapis.com/v1beta/models/" + GOOGLE_STUDIO_MODEL + ":generateContent"
+
+SMART_BOT_SYSTEM_PROMPT = "You are Smart Bot in MyQchat by QWNG. Owner LoyalWQ UID 10000001 L Tick. Support support.qwng@gmail.com. App myqchat-1.onrender.com. You help QWNG Bot when question is not in code. Answer in simple English, max 20 words. Never ask password or OTP or UPI. Never give UPI link or fake link. Payment only inside app Settings Request Tick. If scam warn and say Block and Report."
+
+QWNG_BOT_SYSTEM_PROMPT = "You are QWNG Bot in MyQchat. Use code knowledge first. If not know, ask Smart Bot. Never say I did not understand. Show Help menu. Owner LoyalWQ UID 10000001 L Tick. Support support.qwng@gmail.com."
+
+DEFAULT_CHATS = [{"id": "qwn_bot", "name": "QWNG Bot", "type": "code_bot", "info": "Answers from code, fast"}, {"id": "smart_bot", "name": "Smart Bot", "type": "api_bot", "info": "Gemini 2.5 Flash, smart"}]
+
+def call_smart_bot(user_question, system_prompt=SMART_BOT_SYSTEM_PROMPT):
+    if GOOGLE_STUDIO_API_KEY == "PASTE YOUR GOOGLE STUDIO API KEY HERE" or GOOGLE_STUDIO_API_KEY.strip() == "":
+        return "Smart Bot needs API key. Please paste key in code top. I can still help with MyQchat. " + BOT_HELP_MENU
+    try:
+        data = {"contents": [{"parts": [{"text": user_question}]}], "systemInstruction": {"parts": [{"text": system_prompt}]}, "generationConfig": {"maxOutputTokens": 120, "temperature": 0.7}}
+        req = urllib.request.Request(GOOGLE_STUDIO_URL, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json", "x-goog-api-key": GOOGLE_STUDIO_API_KEY}, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode("utf-8")
+            j = json.loads(body)
+            text = j["candidates"][0]["content"]["parts"][0]["text"]
+            text = text.strip()
+            if len(text) > 500:
+                text = text[:500]
+            if "password" in text.lower() and "never share" not in text.lower():
+                text = "Never share password or OTP. MyQchat never asks for password or OTP. " + BOT_HELP_MENU
+            if "upi" in text.lower() and "http" in text.lower():
+                text = "Payment only inside MyQchat app in Settings. Never pay on email or WhatsApp."
+            return text
+    except Exception as e:
+        return "Smart Bot error. I can still help with MyQchat. " + BOT_HELP_MENU
+
+def bot_api_memory_answer(text, user_id, username):
+    mem = bot_resolve_followup(text, user_id)
+    resolved = mem["resolved"]
+    local = bot_final_knowledge_answer(resolved)
+    if local["found"] and len(local["answer"]) > 5:
+        topic = bot_detect_topic(resolved) or "general"
+        bot_save_memory(user_id
+      def bot_final_test_one(q, user_id="999", username="Tester"):
+    code_ans = bot_final_knowledge_answer(q)
+    smart_needed = not code_ans["found"]
+    if not smart_needed:
+        return {"q": q, "source": "code", "answer": code_ans["answer"], "ok": True}
+    api_ans = call_smart_bot(q)
+    return {"q": q, "source": "api", "answer": api_ans, "ok": True}
+
+def bot_final_test_many():
+    tests = ["what is blue tick", "how to get green tick", "who is owner", "how to play song", "how to create group", "how to post status", "how to call", "how to report", "how to block", "what is uid", "how to search user", "how to create poll", "how to save notes", "how to backup", "support email", "payment safe", "password safe", "what is qwng", "what is myqchat", "help menu"]
+    out = []
+    for t in tests:
+        r = bot_final_test_one(t)
+        out.append(r)
+    return out
+
+def bot_memory_storage_test(user_id):
+    mem = bot_get_memory(user_id)
+    return mem
+
+@app.route("/api/final/bot-test")
+def api_final_bot_test():
+    results = bot_final_test_many()
+    return jsonify({"ok": True, "total": len(results), "tests": results})
+
+@app.route("/api/final/smart-test")
+def api_final_smart_test():
+    q = request.args.get("q") or "what is myqchat"
+    ans = call_smart_bot(q)
+    return jsonify({"ok": True, "q": q, "answer": ans, "model": GOOGLE_STUDIO_MODEL})
+
+@app.route("/api/final/memory-test")
+def api_final_memory_test():
+    uid = request.args.get("user_id") or "0"
+    return jsonify(bot_memory_storage_test(uid))
+
+@app.route("/api/final/all-systems")
+def api_final_all_systems():
+    return jsonify({"ok": True, "systems": ["autocorrect", "intent_score", "synonym_short", "fuzzy_tfidf", "context_memory", "topic_change", "fallback", "typing", "self_correction", "tick_owner_admin_support", "chat_group_status_call", "song_profile_search", "poll_notes_backup", "password_block_safety", "api_memory"]})
+FRONTEND_BIG_CSS = "body{font-family:Arial;margin:0;background:rgb(245,245,245)} .topbar{background:rgb(7,94,84);color:white;padding:14px;display:flex;justify-content:space-between;align-items:center} .topbar b{font-size:18px} .herobox{background:white;margin:12px;padding:18px;border-radius:16px;text-align:center} .herobox h1{margin:4px;font-size:22px} .herobox p{color:rgb(100,100,100);font-size:13px} .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px} .card{background:white;padding:16px;border-radius:14px;text-align:center;cursor:pointer} .card b{font-size:15px} .card p{font-size:12px;color:rgb(100,100,100)} .chatlist{background:white;margin:10px;border-radius:14px;overflow:hidden} .chatrow{display:flex;gap:10px;padding:12px;border-bottom:1px solid rgb(240,240,240);cursor:pointer} .avatar{width:44px;height:44px;border-radius:50%;background:rgb(7,94,84);color:white;display:flex;align-items:center;justify-content:center;font-size:18px} .chatinfo{flex:1} .chatinfo b{font-size:14px} .chatinfo p{font-size:12px;color:rgb(120,120,120);margin:2px} .time{font-size:11px;color:rgb(150,150,150)} .bottombar{display:flex;background:white;border-top:1px solid rgb(220,220,220);position:fixed;bottom:0;width:100%} .bottombar button{flex:1;padding:14px;border:none;background:white;font-size:14px;cursor:pointer}"
+
+FRONTEND_BIG_HOME_HTML = "<div class='topbar'><b>MyQchat</b><span>QWNG</span></div><div class='herobox'><h1>Welcome to MyQchat</h1><p>Simple, Fast, Beautiful Chat by QWNG</p><p>Owner LoyalWQ UID 10000001 L Tick</p></div><div class='grid2'><div class='card' onclick=\"openChat('QWNG Bot')\"><b>QWNG Bot</b><p>Fast answers from code</p></div><div class='card' onclick=\"openChat('Smart Bot')\"><b>Smart Bot</b><p>Gemini 2.5 Flash smart</p></div><div class='card' onclick='showSongs()'><b>Songs</b><p>Play songs, custom URL</p></div><div class='card' onclick='showGroups()'><b>Groups</b><p>Group chat, members</p></div></div><div class='chatlist'><div class='chatrow' onclick=\"openChat('QWNG Bot')\"><div class='avatar'>Q</div><div class='chatinfo'><b>QWNG Bot</b><p>Ask about Tick, Song, Chat, Group</p></div><div class='time'>Now</div></div><div class='chatrow' onclick=\"openChat('Smart Bot')\"><div class='avatar'>S</div><div class='chatinfo'><b>Smart Bot</b><p>Ask anything, smart help</p></div><div class='time'>Now</div></div><div class='chatrow' onclick=\"openChat('LoyalWQ')\"><div class='avatar'>L</div><div class='chatinfo'><b>LoyalWQ L Tick</b><p>Owner UID 10000001</p></div><div class='time'>Now</div></div></div>"
+
+@app.route("/frontend-big")
+def frontend_big_page():
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>MyQchat Big</title><style>" + FRONTEND_BIG_CSS + "</style></head><body>" + FRONTEND_BIG_HOME_HTML + "<div style='height:70px'></div><div class='bottombar'><button onclick='showChats()'>Chats</button><button onclick='showGroups()'>Groups</button><button onclick='showSongs()'>Songs</button><button onclick='showSettings()'>Settings</button></div><script>" + GOOD_LAYOUT_JS + "</script></body></html>"
+    return html
+ FRONTEND_CHAT_JS = "let activeChat='QWNG Bot'; let activeUserId='1'; function openChat(name){activeChat=name; let box=document.getElementById('chatBox'); if(!box) return; box.innerHTML=''; let head=document.createElement('div'); head.className='chatrow'; head.innerHTML='<div class=avatar>'+name.charAt(0)+'</div><div class=chatinfo><b>'+name+'</b><p>Online</p></div>'; box.appendChild(head); let welcome=document.createElement('div'); welcome.className='msg'; welcome.innerText='Hello. I am '+name+'. Ask about Tick, Song, Chat, Group, Status, Call, Settings.'; box.appendChild(welcome);} function sendMsgBig(){let input=document.getElementById('msgInput'); if(!input) return; let text=input.value.trim(); if(!text) return; let box=document.getElementById('chatBox'); let m=document.createElement('div'); m.className='msg msgme'; m.innerText=text; box.appendChild(m); input.value=''; let t=document.createElement('div'); t.className='msg'; t.innerText='typing...'; t.id='typingRow'; box.appendChild(t); fetch('/api/bot/smart-fallback?q='+encodeURIComponent(text)+'&user_id='+activeUserId).then(r=>r.json()).then(d=>{document.getElementById('typingRow').innerText=d.result.answer;});} function showChatsBig(){window.location.href='/frontend-big';} function showGroupsBig(){window.location.href='/frontend-big';} function showSongsBig(){window.location.href='/songs-page';} function showSettingsBig(){alert('Settings: Tick Request, Report, Block, Backup, Export, Support support.qwng@gmail.com');} function showLoginBig(){window.location.href='/';} function doLoginBig(){alert('Login checking with server');} function doSignupBig(){alert('Signup checking with server');}"
+
+FRONTEND_CHAT_HTML = "<div class='topbar'><b id='chatTitle'>QWNG Bot</b><span onclick='showChatsBig()'>Back</span></div><div class='chatbox' id='chatBox' style='height:70vh;overflow-y:auto;padding:10px'></div><div class='inputrow' style='display:flex;gap:8px;padding:10px;background:white'><input id='msgInput' placeholder='Type message' style='flex:1;padding:12px;border-radius:20px;border:1px solid rgb(220,220,220)'><button onclick='sendMsgBig()' style='padding:10px 16px;border-radius:20px;border:none;background:rgb(7,94,84);color:white'>Send</button></div>"
+
+@app.route("/chat-page")
+def chat_page():
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Chat MyQchat</title><style>" + FRONTEND_BIG_CSS + " .msg{background:white;padding:8px 10px;margin:6px;border-radius:10px;max-width:80%} .msgme{background:rgb(220,248,198);margin-left:auto} </style></head><body>" + FRONTEND_CHAT_HTML + "<script>" + FRONTEND_CHAT_JS + " openChat('QWNG Bot');</script></body></html>"
+    return html
+
+@app.route("/bot-page")
+def bot_page():
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Bot MyQchat</title><style>" + FRONTEND_BIG_CSS + " .msg{background:white;padding:8px 10px;margin:6px;border-radius:10px;max-width:80%} .msgme{background:rgb(220,248,198);margin-left:auto} </style></head><body><div class='topbar'><b>QWNG Bot + Smart Bot</b><span>QWNG</span></div><div class='herobox'><h2>2 Bots</h2><p>QWNG Bot from code, Smart Bot from Gemini 2.5 Flash</p></div>" + FRONTEND_CHAT_HTML + "<script>" + FRONTEND_CHAT_JS + " openChat('QWNG Bot');</script></body></html>"
+    return html
+FRONTEND_FEATURES_JS = "function showPolls(){fetch('/api/poll/list').then(r=>r.json()).then(d=>{let box=document.getElementById('chatBox'); if(!box) return; box.innerHTML='<div class=msg>Polls</div>'; d.polls.forEach(p=>{let div=document.createElement('div'); div.className='msg'; div.innerText=p.question; box.appendChild(div);});});} function createPoll(){let q=prompt('Poll question'); if(!q) return; let o1=prompt('Option 1'); let o2=prompt('Option 2'); fetch('/api/poll/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,options:[o1,o2],creator_id:1})}).then(r=>r.json()).then(d=>{alert('Poll created'); showPolls();});} function showNotes(){fetch('/api/notes/list?user_id=1').then(r=>r.json()).then(d=>{let box=document.getElementById('chatBox'); box.innerHTML='<div class=msg>Notes</div>'; d.notes.forEach(n=>{let div=document.createElement('div'); div.className='msg'; div.innerText=n.title+' - '+n.content; box.appendChild(div);});});} function addNote(){let t=prompt('Note title'); let c=prompt('Note content'); fetch('/api/notes/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:1,title:t,content:c})}).then(r=>r.json()).then(d=>{alert('Note saved'); showNotes();});} function showContacts(){fetch('/api/contacts/list?user_id=1').then(r=>r.json()).then(d=>{let box=document.getElementById('chatBox'); box.innerHTML='<div class=msg>Saved Contacts</div>'; d.contacts.forEach(c=>{let div=document.createElement('div'); div.className='msg'; div.innerText=c.name+' - '+c.username+' UID '+c.uid; box.appendChild(div);});});} function showReminders(){fetch('/api/reminders/list?user_id=1').then(r=>r.json()).then(d=>{let box=document.getElementById('chatBox'); box.innerHTML='<div class=msg>Reminders</div>'; d.reminders.forEach(rm=>{let div=document.createElement('div'); div.className='msg'; div.innerText=rm.title+' at '+rm.time_text; box.appendChild(div);});});}"
+
+FRONTEND_FEATURES_HTML = "<div class='grid2'><div class='card' onclick='showPolls()'><b>Poll</b><p>Create and vote</p></div><div class='card' onclick='showNotes()'><b>Notes</b><p>Private notes</p></div><div class='card' onclick='showContacts()'><b>Contacts</b><p>Saved people</p></div><div class='card' onclick='showReminders()'><b>Reminders</b><p>Set reminder</p></div><div class='card' onclick='createPoll()'><b>Create Poll</b><p>New poll</p></div><div class='card' onclick='addNote()'><b>Add Note</b><p>New note</p></div></div>"
+
+@app.route("/features-page")
+def features_page():
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Features MyQchat</title><style>" + FRONTEND_BIG_CSS + " .msg{background:white;padding:8px 10px;margin:6px;border-radius:10px} </style></head><body><div class='topbar'><b>Features</b><span>QWNG</span></div>" + FRONTEND_FEATURES_HTML + "<div id='chatBox' style='padding:10px'></div><script>" + FRONTEND_FEATURES_JS + "</script></body></html>"
+    return html
+  FRONTEND_ADMIN_JS = "function showAdmin(){fetch('/api/admin/users').then(r=>r.json()).then(d=>{let box=document.getElementById('chatBox'); if(!box) return; box.innerHTML='<div class=msg>Admin Users</div>'; d.users.forEach(u=>{let div=document.createElement('div'); div.className='msg'; div.innerText=u.username+' UID '+u.uid+' Tick '+u.tick; box.appendChild(div);});});} function showTicks(){fetch('/api/admin/ticks').then(r=>r.json()).then(d=>{let box=document.getElementById('chatBox'); box.innerHTML='<div class=msg>Tick Requests</div>'; d.ticks.forEach(t=>{let div=document.createElement('div'); div.className='msg'; div.innerText='User '+t.user_id+' Tick '+t.tick_type+' Status '+t.status; box.appendChild(div);});});} function showReports(){fetch('/api/admin/reports').then(r=>r.json()).then(d=>{let box=document.getElementById('chatBox'); box.innerHTML='<div class=msg>Reports</div>'; d.reports.forEach(rp=>{let div=document.createElement('div'); div.className='msg'; div.innerText='Report '+rp.id+' Reason '+rp.reason; box.appendChild(div);});});} function requestTick(){let t=prompt('Tick Blue or Green'); let reason=prompt('Reason, Green needs reason'); fetch('/api/tick/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:1,tick_type:t,reason:reason})}).then(r=>r.json()).then(d=>{alert('Tick requested');});} function doReport(){let target=prompt('Target user id'); let reason=prompt('Reason min 5 chars'); fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reporter_id:1,target_id:target,reason:reason})}).then(r=>r.json()).then(d=>{alert('Reported');});} function doBlock(){let target=prompt('Block user id'); fetch('/api/block',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocker_id:1,blocked_id:target})}).then(r=>r.json()).then(d=>{alert('Blocked');});} function doBackup(){fetch('/api/backup?user_id=1').then(r=>r.json()).then(d=>{alert('Backup done. Messages '+d.backup.messages.length);});} function doExport(){fetch('/api/export?user_id=1').then(r=>r.json()).then(d=>{alert('Export done for '+d.export.user.username);});}"
+
+FRONTEND_SETTINGS_HTML = "<div class='grid2'><div class='card' onclick='requestTick()'><b>Tick Request</b><p>Blue or Green</p></div><div class='card' onclick='doReport()'><b>Report</b><p>Report user</p></div><div class='card' onclick='doBlock()'><b>Block</b><p>Block user</p></div><div class='card' onclick='doBackup()'><b>Backup</b><p>Save chats</p></div><div class='card' onclick='doExport()'><b>Export</b><p>Get data</p></div><div class='card' onclick='showAdmin()'><b>Admin</b><p>Only Owner</p></div><div class='card' onclick='showTicks()'><b>Tick List</b><p>Admin check</p></div><div class='card' onclick='showReports()'><b>Reports</b><p>Admin check</p></div></div>"
+
+@app.route("/settings-page")
+def settings_page():
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Settings MyQchat</title><style>" + FRONTEND_BIG_CSS + " .msg{background:white;padding:8px 10px;margin:6px;border-radius:10px} </style></head><body><div class='topbar'><b>Settings</b><span>QWNG</span></div><div class='herobox'><p>Support support.qwng@gmail.com</p><p>Payment only inside app</p><p>Never share password or OTP</p></div>" + FRONTEND_SETTINGS_HTML + "<div id='chatBox' style='padding:10px'></div><script>" + FRONTEND_ADMIN_JS + "</script></body></html>"
+    return html
+
+@app.route("/admin-page")
+def admin_page_route():
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Admin MyQchat</title><style>" + FRONTEND_BIG_CSS + " .msg{background:white;padding:8px 10px;margin:6px;border-radius:10px} </style></head><body><div class='topbar'><b>Admin Panel</b><span>Owner Only</span></div>" + FRONTEND_SETTINGS_HTML + "<div id='chatBox' style='padding:10px'></div><script>" + FRONTEND_ADMIN_JS + "</script></body></html>"
+    return html
+TERMS_TEXT = "MyQchat Terms: App by QWNG. Owner LoyalWQ UID 10000001. Use app for good chat. Do not scam. Do not share password or OTP. Payment only inside app in Settings. Admin can block scam users. Support support.qwng@gmail.com."
+
+PRIVACY_TEXT = "MyQchat Privacy: We save username, UID, bio, email, chats, notes, contacts, reminders. Notes and contacts are private. We never ask password or OTP. We never sell data. Support support.qwng@gmail.com."
+
+HELP_TEXT = "MyQchat Help: Ask QWNG Bot about Tick, Song, Chat, Group, Status, Call, Settings, Admin, Report, Block, UID, Login, Password. Support email support.qwng@gmail.com. Reply within 24 hours."
+
+@app.route("/terms")
+def terms_page():
+    return jsonify({"ok": True, "terms": TERMS_TEXT, "app": "MyQchat", "owner": "LoyalWQ", "support": "support.qwng@gmail.com"})
+
+@app.route("/privacy")
+def privacy_page():
+    return jsonify({"ok": True, "privacy": PRIVACY_TEXT, "app": "MyQchat", "support": "support.qwng@gmail.com"})
+
+@app.route("/help")
+def help_page():
+    return jsonify({"ok": True, "help": HELP_TEXT, "menu": BOT_HELP_MENU, "support": "support.qwng@gmail.com"})
+
+@app.route("/api/health-full")
+def health_full():
+    db = get_db()
+    total_users = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    total_msgs = db.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+    total_songs = db.execute("SELECT COUNT(*) FROM songs").fetchone()[0]
+    return jsonify({"ok": True, "app": "MyQchat", "version": VERSION, "owner": "LoyalWQ", "owner_uid": "10000001", "total_users": total_users, "total_messages": total_msgs, "total_songs": total_songs, "support": "support.qwng@gmail.com", "status": "Live"})
+    BOT_EXTRA_DATA_1 = {"app_start": "App Start: open MyQchat, login, see Chats.", "app_home": "App Home: Chats, Groups, Songs, Settings at bottom.", "app_chats": "App Chats: list of chats with name, last message, time.", "app_groups_home": "App Groups: list of groups.", "app_songs_home": "App Songs: list of songs.", "app_settings_home": "App Settings: Tick, Report, Block, Backup, Export.", "login_home": "Login Home: enter username and password, tap Login.", "signup_home": "Signup Home: enter username, password, recovery email, tap Signup.", "bot_home": "Bot Home: QWNG Bot and Smart Bot are default chats.", "bot_use": "Bot Use: tap QWNG Bot or Smart Bot, type question.", "bot_typing": "Bot Typing: bot shows typing 1.2 sec for short, 2.8 sec for long.", "bot_memory_use": "Bot Memory: bot remembers last topic.", "bot_topic_use": "Bot Topic: if you change topic, bot forgets old topic."}
+
+BOT_EXTRA_DATA_2 = {"chat_extra_1": "Chat Extra: you can star, forward, edit, delete message.", "chat_extra_2": "Chat Extra: you can mute, archive, pin chat.", "group_extra_1": "Group Extra: admin can add, remove, delete group.", "group_extra_2": "Group Extra: members can leave group.", "status_extra_1": "Status Extra: post text, view list, delete.", "call_extra_1": "Call Extra: voice, video, mute, end.", "song_extra_1": "Song Extra: search, play, custom URL.", "poll_extra_1": "Poll Extra: create, vote, see result.", "notes_extra_1": "Notes Extra: add, list, delete.", "contacts_extra_1": "Contacts Extra: add, list, delete.", "reminder_extra_1": "Reminder Extra: add, list, done.", "backup_extra_1": "Backup Extra: backup chats and notes.", "export_extra_1": "Export Extra: export user data."}
+
+BOT_EXTRA_DATA_3 = {"tick_extra_1": "Tick Extra: Blue needs no reason, Green needs reason, L only Owner.", "tick_extra_2": "Tick Extra: request in Settings, Admin approves.", "admin_extra_1": "Admin Extra: Admin Panel inside Settings, only Owner.", "admin_extra_2": "Admin Extra: approve tick, check reports, broadcast.", "report_extra_1": "Report Extra: reason min 5 chars, Admin checks.", "block_extra_1": "Block Extra: blocked user cannot message.", "uid_extra_1": "UID Extra: UID is user id, search by UID.", "login_extra_1": "Login Extra: username plus password.", "password_extra_1": "Password Extra: never share password or OTP.", "support_extra_1": "Support Extra: support.qwng@gmail.com, reply in 24 hours.", "payment_extra_1": "Payment Extra: payment only inside app in Settings.", "safety_extra_1": "Safety Extra: if scam, Block and Report."}
+
+BOT_EXTRA_DATA_4 = {"qwng_extra_1": "QWNG Extra: QWNG is Software Developer Team.", "myqchat_extra_1": "MyQchat Extra: simple chat app by QWNG.", "owner_extra_1": "Owner Extra: LoyalWQ UID 10000001 L Tick.", "version_extra_1": "Version Extra: 2.0.0 Smart Bot.", "url_extra_1": "URL Extra: myqchat-1.onrender.com.", "features_extra_1": "Features Extra: Chat, Group, Status, Call, Song, Poll, Notes, Contacts, Reminders, Backup, Export.", "help_extra_1": "Help Extra: ask bot about Tick, Song, Chat, Group, Status, Call, Settings.", "chat_help_extra": "Chat Help Extra: open Chats, tap user, send message.", "group_help_extra": "Group Help Extra: open Groups, create group.", "song_help_extra": "Song Help Extra: open Songs, play song.", "status_help_extra": "Status Help Extra: open Status, post.", "call_help_extra": "Call Help Extra: open chat, tap Call."}
+
+BOT_ALL_EXTRA = {}
+BOT_ALL_EXTRA.update(BOT_EXTRA_DATA_1)
+BOT_ALL_EXTRA.update(BOT_EXTRA_DATA_2)
+BOT_ALL_EXTRA.update(BOT_EXTRA_DATA_3)
+BOT_ALL_EXTRA.update(BOT_EXTRA_DATA_4)
+BOT_ALL_EXTRA.update(BOT_COMBINED_SAFETY_KB)
+
+def bot_search_extra_all(text):
+    norm = bot_full_normalize(text)
+    fixed = bot_fix_fuzzy_words(norm)
+    if fixed in BOT_ALL_EXTRA:
+        return BOT_ALL_EXTRA[fixed]
+    if norm in BOT_ALL_EXTRA:
+        return BOT_ALL_EXTRA[norm]
+    best_key = ""
+    best_score = 0
+    for key in BOT_ALL_EXTRA:
+        s = bot_fuzzy_similarity(fixed, key)
+        if s > best_score:
+            best_key = key
+            best_score = s
+    if best_score >= 70:
+        return BOT_ALL_EXTRA[best_key]
+    return ""
+
+def bot_final_answer_all(text, user_id="0", username="User"):
+    local = bot_search_extra_all(text)
+    if local:
+        topic = bot_detect_topic(text) or "general"
+        bot_save_memory(user_id, username, text, local, topic)
+        return {"source": "code_extra", "answer": local, "topic": topic}
+    code = bot_final_knowledge_answer(text)
+    if code["found"]:
+        return {"source": "code", "answer": code["answer"], "topic": bot_detect_topic(text) or "general"}
+    api_ans = call_smart_bot(text)
+    return {"source": "api", "answer": api_ans, "topic": "smart"}
+
+@app.route("/api/bot/extra-all")
+def api_bot_extra_all():
+    q = request.args.get("q") or ""
+    return jsonify(bot_final_answer_all(q, request.args.get("user_id") or "0", request.args.get("username") or "User"))
+
+@app.route("/api/final/run")
+def api_final_run():
+    db = get_db()
+    total_users = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    return jsonify({"ok": True, "app": "MyQchat", "version": VERSION, "owner": "LoyalWQ", "owner_uid": "10000001", "total_users": total_users, "support": "support.qwng@gmail.com", "status": "Ready to run", "start": "gunicorn app:app", "health": "/api/health"})
+
+@app.route("/api/final/count")
+def api_final_count():
+    return jsonify({"ok": True, "parts": "1 to 24 combined", "systems": "autocorrect, intent, synonym, fuzzy, memory, topic, fallback, typing, self correction, knowledge, api", "datasheet": len(BOT_ALL_EXTRA)})
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+    BOT_FINAL_EXTRA_QA = {"final_q1": "MyQchat is a simple chat app built by QWNG.", "final_q2": "Owner is LoyalWQ UID 10000001 with L Tick.", "final_q3": "QWNG is a Software Developer Team.", "final_q4": "Support email is support.qwng@gmail.com. Reply within 24 hours.", "final_q5": "Blue Tick is verification. No reason needed.", "final_q6": "Green Tick needs reason. Reason is mandatory.", "final_q7": "L Tick is only for Owner.", "final_q8": "Scam Tick appears after report.", "final_q9": "Song Library: Admin adds songs by URL. User can pick or paste custom URL.", "final_q10": "Chat has Reply, Star, Forward, Edit, Delete, Mute, Archive, Pin.", "final_q11": "Group has admin, members, add, remove, leave, delete.", "final_q12": "Status is short post. You can post and delete.", "final_q13": "Call is voice and video. Tap Start, End.", "final_q14": "Settings has Admin Panel, Tick Request, Report, Block, Backup, Export.", "final_q15": "Admin Panel is inside Settings. Only Owner can see it.", "final_q16": "Tick Request is inside Settings.", "final_q17": "Report and Block are inside Settings.", "final_q18": "Search by Username and UID is available.", "final_q19": "Poll, Notes, Saved Contacts, Reminders are available.", "final_q20": "Backup and Export are available in Settings.", "final_q21": "Never share password or OTP. MyQchat never asks for it.", "final_q22": "Payment only inside MyQchat app in Settings. Never pay on email or 【entity-WhatsApp¦canonical_name=WhatsApp】.", "final_q23": "If scam, Block and Report. Contact support.qwng@gmail.com.", "final_q24": "QWNG Bot answers from code, fast. Smart Bot answers via Gemini 2.5 Flash.", "final_q25": "App URL is myqchat-1.onrender.com."}
+
+def bot_search_final_extra(text):
+    norm = bot_full_normalize(text)
+    fixed = bot_fix_fuzzy_words(norm)
+    if fixed in BOT_FINAL_EXTRA_QA:
+        return BOT_FINAL_EXTRA_QA[fixed]
+    if norm in BOT_FINAL_EXTRA_QA:
+        return BOT_FINAL_EXTRA_QA[norm]
+    return ""
+
+FRONTEND_EXTRA_BOT_HTML = "<div class='topbar'><b>Smart Bot Chat</b><span>QWNG</span></div><div class='herobox'><h2>Chat with Bots</h2><p>QWNG Bot fast, Smart Bot smart</p><p>Typing 1.2 sec short, 2.8 sec long</p></div><div class='grid2'><div class='card' onclick=\"openChat('QWNG Bot')\"><b>QWNG Bot</b><p>Code answers</p></div><div class='card' onclick=\"openChat('Smart Bot')\"><b>Smart Bot</b><p>Gemini 2.5 Flash</p></div></div>"
+
+FRONTEND_EXTRA_ADMIN_HTML = "<div class='topbar'><b>Admin plus Settings Extra</b><span>Owner Only</span></div><div class='herobox'><p>Admin Panel, Tick List, Reports, Broadcast</p><p>Settings: Tick, Report, Block, Backup, Export</p></div>"
+
+@app.route("/frontend-extra-bot")
+def frontend_extra_bot():
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Extra Bot MyQchat</title><style>" + FRONTEND_BIG_CSS + " .msg{background:white;padding:8px 10px;margin:6px;border-radius:10px} </style></head><body>" + FRONTEND_EXTRA_BOT_HTML + FRONTEND_CHAT_HTML + "<script>" + FRONTEND_CHAT_JS + " openChat('QWNG Bot');</script></body></html>"
+    return html
+
+@app.route("/frontend-extra-admin")
+def frontend_extra_admin():
+    html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Extra Admin MyQchat</title><style>" + FRONTEND_BIG_CSS + " .msg{background:white;padding:8px 10px;margin:6px;border-radius:10px} </style></head><body>" + FRONTEND_EXTRA_ADMIN_HTML + FRONTEND_SETTINGS_HTML + "<div id='chatBox' style='padding:10px'></div><script>" + FRONTEND_ADMIN_JS + "</script></body></html>"
+    return html
+
+@app.route("/api/final/extra-test")
+def api_final_extra_test():
+    tests = ["what is myqchat", "who is owner", "blue tick", "green tick", "l tick", "song", "chat", "group", "status", "call", "settings", "admin", "report", "block", "uid", "login", "password", "support", "payment", "scam"]
+    out = []
+    for t in tests:
+        ans = bot_search_final_extra(t)
+        if not ans:
+            ans = bot_search_all_combined(t)
+        if not ans:
+            ans = BOT_HELP_MENU
+        out.append({"q": t, "answer": ans})
+    return jsonify({"ok": True, "total": len(out), "tests": out})
+
+@app.route("/api/final/deploy")
+def api_final_deploy():
+    return jsonify({"ok": True, "app": "MyQchat", "owner": "LoyalWQ", "owner_uid": "10000001", "start_command": "gunicorn app:app", "health_url": "myqchat-1.onrender.com/api/health", "uptime": "UptimeRobot ping every 5 minutes", "database": "Use Postgres DATABASE_URL from Supabase for no delete", "api_key": "Paste Google Studio API Key in top line GOOGLE_STUDIO_API_KEY", "model": "gemini-2.5-flash", "support": "support.qwng@gmail.com", "status": "Ready to deploy"})
+
+@app.route("/api/final/complete")
+def api_final_complete():
+    total_kb = len(BOT_ALL_EXTRA) + len(BOT_FINAL_EXTRA_QA) + len(BOT_COMBINED_SAFETY_KB)
+    return jsonify({"ok": True, "message": "MyQchat 28 Parts Complete", "app": "MyQchat", "team": "QWNG Software Developer Team", "owner": "LoyalWQ", "owner_uid": "10000001", "parts": "1 to 28 combined", "systems": 10, "datasheet_entries": total_kb, "layout": "Big, Free, Beautiful, Mobile, Features focused", "support": "support.qwng@gmail.com", "status": "Complete"})
+    
