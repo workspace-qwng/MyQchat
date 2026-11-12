@@ -1864,7 +1864,8 @@ def bot_api_memory_answer(text, user_id, username):
     local = bot_final_knowledge_answer(resolved)
     if local["found"] and len(local["answer"]) > 5:
         topic = bot_detect_topic(resolved) or "general"
-        bot_save_memory(user_id
+        bot_save_memory(user_id, topic, local["answer"])
+        return local["answer"]
       def bot_final_test_one(q, user_id="999", username="Tester"):
     code_ans = bot_final_knowledge_answer(q)
     smart_needed = not code_ans["found"]
