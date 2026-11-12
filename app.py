@@ -1827,18 +1827,18 @@ def api_bot_password_block():
     import urllib.request
 import urllib.error
 
-GOOGLE_STUDIO_API_KEY = "PASTE YOUR GOOGLE STUDIO API KEY HERE"
+GOOGLE_STUDIO_API_KEY = "AQ.Ab8RN6KzPb2y_uHlz0qrHri-rFx32ar0GcL_8dfkgngwu_xPyw"
 GOOGLE_STUDIO_MODEL = "gemini-2.5-flash"
 GOOGLE_STUDIO_URL = "https://generativelanguage.googleapis.com/v1beta/models/" + GOOGLE_STUDIO_MODEL + ":generateContent"
 
-SMART_BOT_SYSTEM_PROMPT = "You are Smart Bot in MyQchat by QWNG. Owner LoyalWQ UID 10000001 L Tick. Support support.qwng@gmail.com. App myqchat-1.onrender.com. You help QWNG Bot when question is not in code. Answer in simple English, max 20 words. Never ask password or OTP or UPI. Never give UPI link or fake link. Payment only inside app Settings Request Tick. If scam warn and say Block and Report."
+SMART_BOT_SYSTEM_PROMPT = "You are Smart Bot in MyQchat by QWNG. Owner LoyalWQ. Support Mail is support.qwng@gmail.com. App myqchat-1.onrender.com. You help QWNG Bot when question is not in code. Answer in simple English, max 20 words. Never ask password or OTP or UPI. Never give UPI link or fake link. Payment only inside app Settings Request Tick. If scam warn and say Block and Report."
 
-QWNG_BOT_SYSTEM_PROMPT = "You are QWNG Bot in MyQchat. Use code knowledge first. If not know, ask Smart Bot. Never say I did not understand. Show Help menu. Owner LoyalWQ UID 10000001 L Tick. Support support.qwng@gmail.com."
+QWNG_BOT_SYSTEM_PROMPT = "You are QWNG Bot in MyQchat. Use code knowledge first. If not know, ask Smart Bot. Never say I did not understand. Show Help menu. Owner LoyalWQ. Support email is support.qwng@gmail.com."
 
 DEFAULT_CHATS = [{"id": "qwn_bot", "name": "QWNG Bot", "type": "code_bot", "info": "Answers from code, fast"}, {"id": "smart_bot", "name": "Smart Bot", "type": "api_bot", "info": "Gemini 2.5 Flash, smart"}]
 
 def call_smart_bot(user_question, system_prompt=SMART_BOT_SYSTEM_PROMPT):
-    if GOOGLE_STUDIO_API_KEY == "PASTE YOUR GOOGLE STUDIO API KEY HERE" or GOOGLE_STUDIO_API_KEY.strip() == "":
+    if GOOGLE_STUDIO_API_KEY == "AQ.Ab8RN6KzPb2y_uHlz0qrHri-rFx32ar0GcL_8dfkgngwu_xPyw" or GOOGLE_STUDIO_API_KEY.strip() == "":
         return "Smart Bot needs API key. Please paste key in code top. I can still help with MyQchat. " + BOT_HELP_MENU
     try:
         data = {"contents": [{"parts": [{"text": user_question}]}], "systemInstruction": {"parts": [{"text": system_prompt}]}, "generationConfig": {"maxOutputTokens": 120, "temperature": 0.7}}
@@ -2074,7 +2074,7 @@ def api_final_extra_test():
 
 @app.route("/api/final/deploy")
 def api_final_deploy():
-    return jsonify({"ok": True, "app": "MyQchat", "owner": "LoyalWQ", "owner_uid": "10000001", "start_command": "gunicorn app:app", "health_url": "myqchat-1.onrender.com/api/health", "uptime": "UptimeRobot ping every 5 minutes", "database": "Use Postgres DATABASE_URL from Supabase for no delete", "api_key": "Paste Google Studio API Key in top line GOOGLE_STUDIO_API_KEY", "model": "gemini-2.5-flash", "support": "support.qwng@gmail.com", "status": "Ready to deploy"})
+    return jsonify({"ok": True, "app": "MyQchat", "owner": "LoyalWQ", "owner_uid": "10000001", "start_command": "gunicorn app:app", "health_url": "myqchat-1.onrender.com/api/health", "uptime": "UptimeRobot ping every 5 minutes", "database": "Use Postgres DATABASE_URL from Supabase for no delete", "api_key": "AQ.Ab8RN6KzPb2y_uHlz0qrHri-rFx32ar0GcL_8dfkgngwu_xPyw", "model": "gemini-2.5-flash", "support": "support.qwng@gmail.com", "status": "Ready to deploy"})
 
 @app.route("/api/final/complete")
 def api_final_complete():
